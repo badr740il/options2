@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>نظام تداول الخيارات المتقدم</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070B14;--surface:#0D1525;--surface2:#121C30;--border:rgba(255,255,255,0.07);--border-bright:rgba(99,179,255,0.3);--text:#E2EAF8;--muted:#5A7090;--accent:#3B82F6;--accent2:#06B6D4;--green:#10D981;--red:#EF4444;--yellow:#F59E0B;--purple:#8B5CF6;--font-ar:'IBM Plex Sans Arabic',-apple-system,sans-serif;--font-mono:'JetBrains Mono','SF Mono',monospace;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--font-ar);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 40% at 20% 10%,rgba(59,130,246,0.06) 0%,transparent 60%),radial-gradient(ellipse 60% 30% at 80% 80%,rgba(6,182,212,0.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(59,130,246,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+.z1{position:relative;z-index:1;}
+.ticker-wrap{background:rgba(13,21,37,0.95);border-bottom:1px solid var(--border);overflow:hidden;height:36px;display:flex;align-items:center;}
+.ticker-label{background:var(--accent);padding:0 16px;height:100%;display:flex;align-items:center;font-size:11px;font-weight:700;letter-spacing:.1em;white-space:nowrap;flex-shrink:0;z-index:2;}
+.ticker-inner{display:flex;gap:40px;animation:ticker 35s linear infinite;white-space:nowrap;font-family:var(--font-mono);font-size:12px;}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ticker-item{display:flex;align-items:center;gap:8px;}
+.tick-up{color:var(--green);}.tick-down{color:var(--red);}
+header{background:rgba(7,11,20,0.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 0 20px rgba(59,130,246,0.3);}
+.logo-text h1{font-size:16px;font-weight:700;}.logo-text p{font-size:11px;color:var(--muted);margin-top:1px;}
+.status-pill{display:flex;align-items:center;gap:6px;background:rgba(16,217,129,0.1);border:1px solid rgba(16,217,129,0.25);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--green);}
+.live-dot{width:7px;height:7px;background:var(--green);border-radius:50%;animation:pulse 1.5s ease infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(16,217,129,0.5)}50%{box-shadow:0 0 0 6px rgba(16,217,129,0)}}
+.hdr-actions{display:flex;gap:8px;}
+.btn{padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font-ar);font-size:13px;font-weight:600;transition:all .2s;display:flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--accent);color:white;}.btn-primary:hover{background:#2563EB;}
+.btn-ghost{background:var(--surface);color:var(--text);border:1px solid var(--border);}
+.btn-ghost.active{background:rgba(16,217,129,0.1);border-color:rgba(16,217,129,0.4);color:var(--green);}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.layout{padding:20px 24px;max-width:1600px;margin:0 auto;display:flex;flex-direction:column;gap:20px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
+.card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.card-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+.card-title .dot{width:3px;height:18px;border-radius:2px;}
+.card-body{padding:16px 20px;}
+.stocks-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.stock-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.stock-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity .2s;}
+.stock-card:hover{border-color:var(--border-bright);transform:translateY(-1px);}
+.stock-card:hover::before{opacity:1;}
+.stock-card.selected{border-color:rgba(59,130,246,0.5);background:rgba(59,130,246,0.05);}
+.stock-card.up::before{background:var(--green);}.stock-card.down::before{background:var(--red);}
+.sc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+.sc-ticker{font-size:14px;font-weight:700;font-family:var(--font-mono);}
+.sc-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;font-family:var(--font-mono);}
+.badge-up{background:rgba(16,217,129,0.15);color:var(--green);}.badge-down{background:rgba(239,68,68,0.15);color:var(--red);}
+.sc-price{font-size:26px;font-weight:700;font-family:var(--font-mono);margin-bottom:4px;}
+.sc-change{font-size:13px;font-family:var(--font-mono);}.sc-change.up{color:var(--green);}.sc-change.down{color:var(--red);}
+.sc-stats{margin-top:10px;display:flex;justify-content:space-between;font-size:11px;color:var(--muted);}
+.sc-bar{height:3px;background:var(--border);border-radius:2px;margin-top:10px;overflow:hidden;}
+.sc-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+.greeks-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.greek-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;}
+.greek-name{font-size:11px;color:var(--muted);margin-bottom:4px;}
+.greek-symbol{font-size:18px;font-weight:700;font-family:var(--font-mono);}
+.greek-value{font-size:16px;font-weight:700;font-family:var(--font-mono);}
+.greek-desc{font-size:10px;color:var(--muted);margin-top:4px;}
+.options-tabs{display:flex;gap:4px;margin-bottom:12px;}
+.tab-btn{padding:7px 20px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font-ar);font-size:13px;font-weight:600;transition:all .2s;}
+.tab-btn.active{background:var(--surface2);color:var(--text);border-color:var(--border-bright);}
+.ticker-selector{display:flex;gap:8px;flex-wrap:wrap;}
+.ticker-pill{padding:5px 16px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font-mono);font-size:13px;font-weight:600;transition:all .2s;}
+.ticker-pill.active{background:var(--accent);color:white;border-color:var(--accent);}
+.expiry-selector{display:flex;gap:6px;flex-wrap:wrap;padding:0 20px 12px;}
+.expiry-pill{padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:var(--font-mono);font-size:12px;transition:all .2s;}
+.expiry-pill.active{background:rgba(245,158,11,0.15);color:var(--yellow);border-color:rgba(245,158,11,0.4);}
+.options-table{width:100%;border-collapse:collapse;font-size:13px;}
+.options-table th{padding:10px 12px;text-align:right;color:var(--muted);font-weight:500;font-size:11px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.options-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);font-family:var(--font-mono);font-size:12px;white-space:nowrap;}
+.options-table tr:hover td{background:rgba(255,255,255,0.02);}
+.options-table tr.call-row td:first-child{border-right:2px solid var(--green);}
+.options-table tr.put-row td:first-child{border-right:2px solid var(--red);}
+.options-table tr.itm{background:rgba(16,217,129,0.03);}
+.type-badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--font-mono);}
+.type-call{background:rgba(16,217,129,0.15);color:var(--green);}
+.type-put{background:rgba(239,68,68,0.15);color:var(--red);}
+.itm-badge{display:inline-block;padding:2px 6px;border-radius:3px;font-size:10px;font-weight:600;}
+.itm-yes{background:rgba(16,217,129,0.1);color:var(--green);border:1px solid rgba(16,217,129,0.3);}
+.itm-no{background:rgba(90,112,144,0.15);color:var(--muted);border:1px solid var(--border);}
+.score-bar{display:flex;align-items:center;gap:6px;}
+.score-fill{height:4px;border-radius:2px;}
+.trade-btn{padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font-ar);transition:all .15s;}
+.trade-btn-call{background:rgba(16,217,129,0.15);color:var(--green);border:1px solid rgba(16,217,129,0.3);}
+.trade-btn-call:hover{background:var(--green);color:#000;}
+.trade-btn-put{background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3);}
+.trade-btn-put:hover{background:var(--red);color:white;}
+.top-trades-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+.top-trade-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden;transition:all .2s;}
+.top-trade-card:hover{border-color:var(--border-bright);transform:translateY(-2px);}
+.rank-badge{position:absolute;top:12px;left:12px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--font-mono);}
+.rank-1{background:rgba(245,158,11,0.2);color:var(--yellow);border:1px solid rgba(245,158,11,0.4);}
+.rank-2{background:rgba(156,163,175,0.2);color:#9CA3AF;border:1px solid rgba(156,163,175,0.3);}
+.rank-3{background:rgba(180,120,60,0.2);color:#B47C3C;border:1px solid rgba(180,120,60,0.3);}
+.rank-other{background:var(--surface);color:var(--muted);border:1px solid var(--border);}
+.ttc-ticker{font-size:18px;font-weight:700;font-family:var(--font-mono);margin-bottom:2px;}
+.ttc-type{font-size:12px;color:var(--muted);margin-bottom:12px;}
+.ttc-price{font-size:22px;font-weight:700;font-family:var(--font-mono);margin-bottom:12px;}
+.ttc-stats{display:flex;flex-direction:column;gap:6px;font-size:12px;}
+.ttc-stat{display:flex;justify-content:space-between;}
+.ttc-stat .label{color:var(--muted);}
+.ttc-targets{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px;}
+.target-up{color:var(--green);font-weight:700;}.target-down{color:var(--red);font-weight:700;}
+.score-display{margin-top:8px;display:flex;align-items:center;gap:8px;font-size:11px;}
+.score-track{flex:1;height:4px;background:var(--border);border-radius:2px;}
+.score-val{font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--yellow);}
+.charts-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.active-trade{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;}
+.at-icon{font-size:22px;width:40px;text-align:center;}
+.at-info{flex:1;}
+.at-title{font-size:14px;font-weight:700;font-family:var(--font-mono);}
+.at-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.at-pnl{text-align:right;}
+.at-pnl-val{font-size:18px;font-weight:700;font-family:var(--font-mono);}
+.at-close{padding:6px 14px;border-radius:6px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.1);color:var(--red);cursor:pointer;font-size:12px;font-weight:600;transition:all .2s;}
+.at-close:hover{background:var(--red);color:white;}
+.risk-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.risk-card{border-radius:10px;padding:14px;border:1px solid;}
+.risk-title{font-size:13px;font-weight:700;margin-bottom:6px;}
+.risk-desc{font-size:11px;line-height:1.6;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:100;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border-bright);border-radius:16px;padding:28px;max-width:440px;width:100%;margin:16px;box-shadow:0 0 60px rgba(59,130,246,0.15);}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:20px;text-align:center;}
+.modal-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px;}
+.modal-row .label{color:var(--muted);}
+.modal-row .val{font-weight:700;font-family:var(--font-mono);}
+.modal-warning{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:12px;font-size:12px;color:var(--yellow);margin-top:16px;margin-bottom:20px;line-height:1.7;}
+.modal-actions{display:flex;gap:10px;}
+.modal-actions .btn{flex:1;justify-content:center;padding:10px;}
+.btn-confirm{background:var(--green);color:#000;font-weight:700;}
+.btn-cancel{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.notif{position:fixed;top:80px;right:24px;background:var(--surface);border:1px solid var(--border-bright);border-radius:10px;padding:12px 16px;font-size:13px;z-index:200;max-width:320px;box-shadow:0 10px 40px rgba(0,0,0,0.4);transform:translateX(20px);opacity:0;transition:all .3s ease;pointer-events:none;}
+.notif.show{transform:translateX(0);opacity:1;pointer-events:auto;}
+.loading-cell{text-align:center;padding:40px;color:var(--muted);}
+.spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#status-overlay{position:fixed;top:85px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border-bright);border-radius:8px;padding:8px 20px;font-size:13px;z-index:60;display:none;white-space:nowrap;box-shadow:0 8px 30px rgba(0,0,0,0.4);}
+#status-overlay.show{display:block;}
+.data-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;}
+.badge-live{background:rgba(16,217,129,0.1);border:1px solid rgba(16,217,129,0.3);color:var(--green);}
+.badge-sim{background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:var(--yellow);}
+.ai-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:6px;padding:3px 10px;font-size:11px;color:var(--purple);font-weight:600;}
+::-webkit-scrollbar{width:6px;height:6px;}::-webkit-scrollbar-track{background:var(--bg);}::-webkit-scrollbar-thumb{background:#1e3050;border-radius:3px;}
+.overflow-x{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.space-y>*+*{margin-top:10px;}
+.text-green{color:var(--green);}.text-red{color:var(--red);}.text-yellow{color:var(--yellow);}.text-muted{color:var(--muted);}.font-mono{font-family:var(--font-mono);}.text-center{text-align:center;}
+@media(max-width:1200px){.stocks-grid{grid-template-columns:repeat(2,1fr)}.top-trades-grid{grid-template-columns:repeat(3,1fr)}.charts-row{grid-template-columns:1fr 1fr}}
+@media(max-width:768px){.layout{padding:12px}.stocks-grid{grid-template-columns:1fr 1fr}.top-trades-grid{grid-template-columns:1fr 1fr}.charts-row{grid-template-columns:1fr}.greeks-grid{grid-template-columns:repeat(3,1fr)}.risk-grid{grid-template-columns:1fr 1fr}header{flex-wrap:wrap;gap:10px}}
+</style>
+</head>
+<body>
+
+<div class="ticker-wrap z1">
+  <div class="ticker-label">📡 LIVE</div>
+  <div style="overflow:hidden;flex:1">
+    <div class="ticker-inner" id="live-ticker"><span class="text-muted">جاري الاتصال...</span></div>
+  </div>
+</div>
+
+<header class="z1">
+  <div class="logo">
+    <div class="logo-icon">📈</div>
+    <div class="logo-text">
+      <h1>نظام تداول الخيارات المتقدم</h1>
+      <p id="conn-status">يتصل بـ Polygon.io API...</p>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="status-pill">
+      <div class="live-dot"></div>
+      <span id="last-update-text">--</span>
+    </div>
+    <div class="hdr-actions">
+      <button class="btn btn-primary" onclick="fetchAllData()" id="refresh-btn">🔄 تحديث</button>
+      <button class="btn btn-ghost active" onclick="toggleAuto()" id="auto-btn">⏸ تلقائي (60s)</button>
+    </div>
+  </div>
+</header>
+
+<div id="status-overlay" class="z1"></div>
+
+<div class="layout z1">
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="dot" style="background:var(--green)"></span>أسعار الأسهم المباشرة</div>
+      <div id="stocks-badge" class="data-badge badge-sim">⏳ جاري التحميل</div>
+    </div>
+    <div class="card-body">
+      <div class="stocks-grid" id="stocks-grid">
+        <div class="stock-card" style="grid-column:1/-1;text-align:center;padding:30px">
+          <div class="spinner"></div>
+          <div class="text-muted">جاري تحميل البيانات...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="dot" style="background:var(--purple)"></span>🧮 مؤشرات Greeks</div>
+      <div id="greeks-ticker-label" class="text-muted" style="font-size:12px">اختر عقداً من الجدول أدناه</div>
+    </div>
+    <div class="card-body">
+      <div class="greeks-grid" id="greeks-grid">
+        <div class="greek-card"><div class="greek-name">Δ Delta</div><div class="greek-value text-muted">--</div></div>
+        <div class="greek-card"><div class="greek-name">Γ Gamma</div><div class="greek-value text-muted">--</div></div>
+        <div class="greek-card"><div class="greek-name">Θ Theta</div><div class="greek-value text-muted">--</div></div>
+        <div class="greek-card"><div class="greek-name">ν Vega</div><div class="greek-value text-muted">--</div></div>
+        <div class="greek-card"><div class="greek-name">ρ Rho</div><div class="greek-value text-muted">--</div></div>
+      </div>
+      <div id="greeks-explanation" style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.8"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>سلسلة الخيارات — Options Chain</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div id="options-badge" class="data-badge badge-sim">⏳ جاري التحميل</div>
+        <div class="ticker-selector">
+          <button class="ticker-pill active" onclick="selectTicker('NVDA')">NVDA</button>
+          <button class="ticker-pill" onclick="selectTicker('AAPL')">AAPL</button>
+          <button class="ticker-pill" onclick="selectTicker('MSFT')">MSFT</button>
+          <button class="ticker-pill" onclick="selectTicker('TSLA')">TSLA</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div style="padding:12px 20px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="options-tabs">
+          <button class="tab-btn active" onclick="switchTab('all')">الكل</button>
+          <button class="tab-btn" onclick="switchTab('calls')">CALLS 📈</button>
+          <button class="tab-btn" onclick="switchTab('puts')">PUTS 📉</button>
+        </div>
+        <div id="options-expiry-label" class="text-muted" style="font-size:12px;margin-right:auto"></div>
+      </div>
+      <div class="expiry-selector" id="expiry-selector"></div>
+      <div class="overflow-x" style="padding:12px 0">
+        <table class="options-table">
+          <thead>
+            <tr>
+              <th>النوع</th><th>Strike</th><th>Last</th><th>Bid</th><th>Ask</th>
+              <th>Change%</th><th>Volume</th><th>OI</th><th>IV</th>
+              <th>Delta Δ</th><th>Gamma Γ</th><th>Theta Θ</th><th>Score</th><th>ITM</th><th>إجراء</th>
+            </tr>
+          </thead>
+          <tbody id="options-tbody">
+            <tr><td colspan="15" class="loading-cell"><div class="text-muted">اختر سهماً لعرض بيانات الخيارات</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="dot" style="background:var(--yellow)"></span>🏆 أفضل 5 فرص تداول اليوم</div>
+      <div class="ai-badge">✨ AI Score Engine</div>
+    </div>
+    <div class="card-body">
+      <div class="top-trades-grid" id="top-trades-grid">
+        <div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted)">انتظر تحميل البيانات...</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--accent)"></span>حجم التداول</div></div>
+      <div class="card-body"><canvas id="volumeChart" height="160"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--yellow)"></span>التقلب الضمني IV</div></div>
+      <div class="card-body"><canvas id="ivChart" height="160"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--purple)"></span>Greeks Overview</div></div>
+      <div class="card-body"><canvas id="greeksChart" height="160"></canvas></div>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="dot" style="background:var(--accent2)"></span>الصفقات النشطة</div>
+      <div id="trades-count" class="text-muted" style="font-size:12px">لا توجد صفقات</div>
+    </div>
+    <div class="card-body">
+      <div class="space-y" id="active-trades-list">
+        <div class="text-muted text-center" style="padding:20px">لا توجد صفقات نشطة — اضغط تداول على أي عقد</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title"><span class="dot" style="background:var(--red)"></span>⚠️ إدارة المخاطر — قواعد إلزامية</div>
+    </div>
+    <div class="card-body">
+      <div class="risk-grid">
+        <div class="risk-card" style="background:rgba(239,68,68,0.05);border-color:rgba(239,68,68,0.2)">
+          <div class="risk-title text-red">⏰ Day Trade فقط</div>
+          <div class="risk-desc text-muted">أغلق جميع المراكز قبل 15 دقيقة من إغلاق السوق.</div>
+        </div>
+        <div class="risk-card" style="background:rgba(245,158,11,0.05);border-color:rgba(245,158,11,0.2)">
+          <div class="risk-title text-yellow">🛑 وقف الخسارة الإلزامي</div>
+          <div class="risk-desc text-muted">-20% من قيمة العقد = خروج فوري. -50% = كارثة.</div>
+        </div>
+        <div class="risk-card" style="background:rgba(59,130,246,0.05);border-color:rgba(59,130,246,0.2)">
+          <div class="risk-title" style="color:var(--accent)">💵 قاعدة 2%</div>
+          <div class="risk-desc text-muted">لا تضع أكثر من 2% من رأس مالك في صفقة واحدة.</div>
+        </div>
+        <div class="risk-card" style="background:rgba(139,92,246,0.05);border-color:rgba(139,92,246,0.2)">
+          <div class="risk-title" style="color:var(--purple)">📰 تجنب الأخبار</div>
+          <div class="risk-desc text-muted">لا تتداول في يوم الأرباح، CPI، FOMC — Volatility Crush.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="modal-overlay" id="trade-modal">
+  <div class="modal-box">
+    <div class="modal-title">⚡ تنفيذ الصفقة</div>
+    <div id="modal-rows"></div>
+    <div class="modal-warning">⚠️ هذا نظام تعليمي فقط. التداول ينطوي على مخاطر عالية وقد تخسر كامل المبلغ المستثمر.</div>
+    <div class="modal-actions">
+      <button class="btn btn-confirm" onclick="confirmTrade()">✅ تأكيد التنفيذ</button>
+      <button class="btn btn-cancel" onclick="closeModal()">❌ إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+(function(){"use strict";
+
+const POLYGON_KEY='A3_UrolfmUqICXlLxcqDS3ZQD0ACpR5A';
+const FINNHUB_KEY='d8b3idhr01qk20spgmsgd8b3idhr01qk20spgmt0';
+const TICKERS=['NVDA','AAPL','MSFT','TSLA'];
+
+let stockData={};
+let optionsData={};
+let activeTrades=[];
+let currentTicker='NVDA';
+let currentTab='all';
+let currentExpiry=null;
+let autoInterval=null;
+let pendingTrade=null;
+let charts={};
+let isChartReady=false;
+
+/* ── Black-Scholes ── */
+function nCDF(x){
+  const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+  const s=x<0?-1:1; x=Math.abs(x)/Math.sqrt(2);
+  const t=1/(1+p*x);
+  return 0.5*(1+s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x)));
+}
+function nPDF(x){return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI);}
+
+function calcGreeks(S,K,T,r,sigma,type){
+  if(T<=0)T=0.001; if(sigma<=0)sigma=0.01;
+  const d1=(Math.log(S/K)+(r+0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));
+  const d2=d1-sigma*Math.sqrt(T);
+  const nd1=nPDF(d1);
+  let delta,theta,rho;
+  if(type==='call'){
+    delta=nCDF(d1);
+    theta=(-(S*nd1*sigma)/(2*Math.sqrt(T))-r*K*Math.exp(-r*T)*nCDF(d2))/365;
+    rho=K*T*Math.exp(-r*T)*nCDF(d2)/100;
+  }else{
+    delta=nCDF(d1)-1;
+    theta=(-(S*nd1*sigma)/(2*Math.sqrt(T))+r*K*Math.exp(-r*T)*nCDF(-d2))/365;
+    rho=-K*T*Math.exp(-r*T)*nCDF(-d2)/100;
+  }
+  const gamma=nd1/(S*sigma*Math.sqrt(T));
+  const vega=S*nd1*Math.sqrt(T)/100;
+  return{delta,gamma,theta,vega,rho};
+}
+
+function calcIV(S,K,T,r,mktPrice,type){
+  let sigma=0.3;
+  for(let i=0;i<150;i++){
+    if(sigma<=0){sigma=0.001;break;} if(sigma>5){sigma=5;break;}
+    const d1=(Math.log(S/K)+(r+0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));
+    const d2=d1-sigma*Math.sqrt(T);
+    let price=type==='call'?S*nCDF(d1)-K*Math.exp(-r*T)*nCDF(d2):K*Math.exp(-r*T)*nCDF(-d2)-S*nCDF(-d1);
+    const vega=S*nPDF(d1)*Math.sqrt(T);
+    const diff=price-mktPrice;
+    if(Math.abs(diff)<0.0001)break;
+    sigma-=diff/(vega||0.001);
+  }
+  return Math.max(0.01,Math.min(5,sigma));
+}
+
+/* ── Score Engine ── */
+function computeScore(opt,greeks,stock){
+  const S=stock?.price||0;
+  const dist=Math.abs(opt.strike-S)/S;
+  const spread=opt.ask-opt.bid;
+  const spreadPct=spread/(opt.lastPrice||0.01);
+  const trend=(stock?.change||0)>=0?'UP':'DOWN';
+  const volScore=Math.min(Math.log10((opt.volume||1)+1)/4.5,1);
+  const spreadScore=spreadPct<0.05?1:spreadPct<0.10?0.7:spreadPct<0.20?0.4:0.1;
+  const atmScore=Math.exp(-dist/0.03);
+  const absDelta=Math.abs(greeks?.delta||0);
+  const deltaScore=absDelta>=0.30&&absDelta<=0.70?1:absDelta>=0.20&&absDelta<=0.80?0.6:0.2;
+  const iv=opt.impliedVolatility||0;
+  const ivScore=iv>=0.25&&iv<=0.65?1:iv>=0.15&&iv<=0.80?0.6:0.2;
+  const trendBonus=(trend==='UP'&&opt.type==='call')||(trend==='DOWN'&&opt.type==='put')?0.15:0;
+  const oiScore=Math.min(Math.log10((opt.openInterest||1)+1)/4,1)*0.5;
+  const thetaPenalty=Math.abs(greeks?.theta||0)>0.05?-0.1:0;
+  return Math.max(0,Math.min(1,volScore*0.20+spreadScore*0.18+atmScore*0.22+deltaScore*0.15+ivScore*0.12+oiScore*0.08+trendBonus+thetaPenalty));
+}
+
+/* ── Polygon Stocks ── */
+async function fetchPolygonStocks(){
+  const res={};
+  for(const tk of TICKERS){
+    try{
+      const r=await fetch(`https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/${tk}?apiKey=${POLYGON_KEY}`);
+      const d=await r.json();
+      const snap=d?.ticker;
+      if(snap){
+        const price=snap.day?.c||snap.prevDay?.c||0;
+        const pc=snap.prevDay?.c||price;
+        if(price>0){
+          res[tk]={price,previousClose:pc,dayHigh:snap.day?.h||pc,dayLow:snap.day?.l||pc,
+            volume:snap.day?.v||0,change:price-pc,changePercent:pc?((price-pc)/pc)*100:0};
+        }
+      }
+    }catch(e){console.warn('Polygon stock',tk,e.message);}
+  }
+  return res;
+}
+
+/* ── Finnhub Fallback ── */
+async function fetchFinnhubStocks(){
+  const res={};
+  for(const tk of TICKERS){
+    try{
+      const r=await fetch(`https://finnhub.io/api/v1/quote?symbol=${tk}&token=${FINNHUB_KEY}`,{credentials:'omit'});
+      const d=await r.json();
+      if(d&&d.c>0) res[tk]={price:d.c,previousClose:d.pc,dayHigh:d.h,dayLow:d.l,volume:d.v||0,change:d.c-d.pc,changePercent:((d.c-d.pc)/d.pc)*100};
+    }catch(e){console.warn('Finnhub',tk,e.message);}
+  }
+  return res;
+}
+
+/* ── Polygon Options ── */
+async function fetchExpiryDates(ticker){
+  try{
+    const today=new Date().toISOString().split('T')[0];
+    const url=`https://api.polygon.io/v3/reference/options/contracts?underlying_ticker=${ticker}&expiration_date.gte=${today}&limit=500&sort=expiration_date&order=asc&apiKey=${POLYGON_KEY}`;
+    const r=await fetch(url);
+    const d=await r.json();
+    if(!d.results) return [];
+    const dates=[...new Set(d.results.map(x=>x.expiration_date))].sort();
+    return dates.slice(0,10);
+  }catch(e){console.warn('Expiry dates',e.message);return [];}
+}
+
+async function fetchPolygonOptions(ticker,expiry){
+  const S=stockData[ticker]?.price||100;
+  const r=0.053;
+  const T=Math.max((new Date(expiry)-new Date())/(365*24*3600*1000),0.001);
+  try{
+    let allResults=[];
+    let url=`https://api.polygon.io/v3/snapshot/options/${ticker}?expiration_date=${expiry}&limit=250&apiKey=${POLYGON_KEY}`;
+    while(url){
+      const resp=await fetch(url);
+      const data=await resp.json();
+      if(data.results) allResults=allResults.concat(data.results);
+      url=data.next_url?data.next_url+`&apiKey=${POLYGON_KEY}`:null;
+      if(allResults.length>=500) break;
+    }
+    if(!allResults.length) return null;
+    const contracts=allResults.map(item=>{
+      const det=item.details||{};
+      const day=item.day||{};
+      const gr=item.greeks||{};
+      const strike=det.strike_price||0;
+      const type=(det.contract_type||'call').toLowerCase();
+      const lastPrice=day.close||((item.last_quote?.bid||0)+(item.last_quote?.ask||0))/2||0;
+      const bid=item.last_quote?.bid||0;
+      const ask=item.last_quote?.ask||0;
+      const volume=day.volume||item.open_interest||0;
+      const openInterest=item.open_interest||0;
+      const changePct=day.change_percent||0;
+      const iv_raw=item.implied_volatility||0;
+      const sigma=iv_raw>0?iv_raw:(lastPrice>0?calcIV(S,strike,T,r,lastPrice,type):0.3);
+      let greeks;
+      if(gr.delta!==undefined){
+        greeks={delta:gr.delta||0,gamma:gr.gamma||0,theta:gr.theta||0,vega:gr.vega||0,rho:gr.rho||0};
+      }else{
+        greeks=calcGreeks(S,strike,T,r,sigma,type);
+      }
+      const inTheMoney=type==='call'?strike<S:strike>S;
+      const c={type,strike,lastPrice,bid,ask,changePct,volume,openInterest,impliedVolatility:sigma,greeks,inTheMoney,T,r,isLive:true};
+      c.score=computeScore(c,greeks,stockData[ticker]);
+      return c;
+    }).filter(c=>c.strike>0);
+    return contracts.length?contracts:null;
+  }catch(e){console.warn('Polygon options',ticker,e.message);return null;}
+}
+
+/* ── Simulated Fallback ── */
+function simulateOptions(ticker,S){
+  const ivMap={NVDA:0.52,TSLA:0.65,AAPL:0.27,MSFT:0.24};
+  const iv=ivMap[ticker]||0.35;
+  const step=S>400?5:S>100?2.5:1;
+  const atm=Math.round(S/step)*step;
+  const expiry=nextFriday();
+  const T=Math.max((new Date(expiry)-new Date())/(365*24*3600*1000),0.001);
+  const r=0.053;
+  const contracts=[];
+  [-3,-2,-1,0,1,2,3,4].forEach(i=>{
+    const strike=+(atm+i*step).toFixed(1);
+    const sigma=Math.max(0.1,iv+((strike-S)/S)*0.05);
+    ['call','put'].forEach(type=>{
+      const greeks=calcGreeks(S,strike,T,r,sigma,type);
+      const intrinsic=type==='call'?Math.max(0,S-strike):Math.max(0,strike-S);
+      const timeVal=S*sigma*0.08*Math.exp(-Math.abs((strike-S)/S)*6);
+      const lastPrice=+Math.max(0.05,intrinsic+timeVal).toFixed(2);
+      const volMult=Math.exp(-Math.abs((strike-S)/S)*5);
+      const c={type,strike,lastPrice,bid:+(lastPrice*0.96).toFixed(2),ask:+(lastPrice*1.04).toFixed(2),
+        changePct:+(Math.random()*6-2).toFixed(2),
+        volume:Math.round(1500+8000*volMult+Math.random()*2000),
+        openInterest:Math.round(6000+25000*volMult),
+        impliedVolatility:sigma,greeks,
+        inTheMoney:type==='call'?strike<S:strike>S,T,r,isLive:false};
+      c.score=computeScore(c,greeks,stockData[ticker]);
+      contracts.push(c);
+    });
+  });
+  return{expiry,contracts,expiryDates:[expiry],isSimulated:true};
+}
+
+function nextFriday(){
+  const d=new Date();
+  let days=(5-d.getDay()+7)%7;
+  if(days===0)days=7;
+  d.setDate(d.getDate()+days);
+  return d.toISOString().split('T')[0];
+}
+
+/* ── Main Fetch ── */
+async function fetchAllData(){
+  showStatus('🔄 جاري جلب البيانات الحية...','blue');
+  const btn=document.getElementById('refresh-btn');
+  if(btn){btn.disabled=true;btn.textContent='⏳ جاري التحديث...';}
+  try{
+    let stocks=await fetchPolygonStocks();
+    let live=Object.keys(stocks).length>0;
+    if(!live){
+      stocks=await fetchFinnhubStocks();
+      live=Object.keys(stocks).length>0;
+    }
+    if(live) Object.assign(stockData,stocks);
+
+    const sb=document.getElementById('stocks-badge');
+    if(sb){sb.textContent=live?'📡 Polygon.io — حي':'⚠️ بيانات محاكاة';sb.className='data-badge '+(live?'badge-live':'badge-sim');}
+
+    await loadOptionsForTicker(currentTicker);
+    updateStocksGrid();
+    updateOptionsTable();
+    updateTopTrades();
+    if(isChartReady)updateCharts();
+    updateTickerBanner();
+
+    const now=new Date().toLocaleTimeString('ar-SA');
+    const el=document.getElementById('last-update-text');
+    if(el)el.textContent=`آخر تحديث: ${now}`;
+    const cs=document.getElementById('conn-status');
+    if(cs)cs.textContent=live?'✅ أسعار حية — Polygon.io API':'⚠️ بيانات محاكاة';
+    showStatus(live?'✅ بيانات حية من Polygon.io':'⚠️ بيانات محاكاة',live?'green':'yellow',3000);
+  }catch(err){
+    showStatus('❌ خطأ: '+err.message,'red',5000);
+    console.error(err);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='🔄 تحديث';}
+  }
+}
+
+async function loadOptionsForTicker(ticker){
+  if(!stockData[ticker]) return;
+  const ob=document.getElementById('options-badge');
+  const tbody=document.getElementById('options-tbody');
+  if(tbody)tbody.innerHTML='<tr><td colspan="15" class="loading-cell"><div class="spinner"></div><div class="text-muted">جاري تحميل Options Chain لـ '+ticker+'...</div></td></tr>';
+
+  const expiryDates=await fetchExpiryDates(ticker);
+  if(expiryDates.length>0){
+    const expiry=currentExpiry&&expiryDates.includes(currentExpiry)?currentExpiry:expiryDates[0];
+    currentExpiry=expiry;
+    const contracts=await fetchPolygonOptions(ticker,expiry);
+    if(contracts&&contracts.length>0){
+      optionsData[ticker]={expiry,contracts,expiryDates,isSimulated:false};
+      if(ob){ob.textContent='📡 Polygon.io — بيانات حية';ob.className='data-badge badge-live';}
+      renderExpirySelector(ticker,expiryDates,expiry);
+      showStatus('✅ Options Chain حية لـ '+ticker,'green',3000);
+      return;
+    }
+  }
+  // Fallback
+  const sim=simulateOptions(ticker,stockData[ticker]?.price||100);
+  optionsData[ticker]=sim;
+  currentExpiry=sim.expiry;
+  if(ob){ob.textContent='⚠️ بيانات محاكاة';ob.className='data-badge badge-sim';}
+  renderExpirySelector(ticker,sim.expiryDates,sim.expiry);
+  showStatus('⚠️ Options Chain محاكاة لـ '+ticker,'yellow',4000);
+}
+
+function renderExpirySelector(ticker,dates,selected){
+  const el=document.getElementById('expiry-selector');
+  if(!el)return;
+  el.innerHTML=dates.map(d=>`<button class="expiry-pill ${d===selected?'active':''}" onclick="selectExpiry('${ticker}','${d}')">${d}</button>`).join('');
+  const lbl=document.getElementById('options-expiry-label');
+  if(lbl)lbl.textContent=`انتهاء: ${selected}${optionsData[ticker]?.isSimulated?' (محاكاة)':' ✅ حي'}`;
+}
+
+window.selectExpiry=async function(ticker,expiry){
+  currentExpiry=expiry;
+  document.querySelectorAll('.expiry-pill').forEach(b=>b.classList.toggle('active',b.textContent===expiry));
+  const tbody=document.getElementById('options-tbody');
+  if(tbody)tbody.innerHTML='<tr><td colspan="15" class="loading-cell"><div class="spinner"></div><div class="text-muted">جاري تحميل '+expiry+'...</div></td></tr>';
+  const contracts=await fetchPolygonOptions(ticker,expiry);
+  const ob=document.getElementById('options-badge');
+  if(contracts&&contracts.length>0){
+    optionsData[ticker]={...optionsData[ticker],expiry,contracts,isSimulated:false};
+    if(ob){ob.textContent='📡 Polygon.io — بيانات حية';ob.className='data-badge badge-live';}
+  }else{
+    const sim=simulateOptions(ticker,stockData[ticker]?.price||100);
+    optionsData[ticker]={...sim,expiry};
+    if(ob){ob.textContent='⚠️ بيانات محاكاة';ob.className='data-badge badge-sim';}
+  }
+  const lbl=document.getElementById('options-expiry-label');
+  if(lbl)lbl.textContent=`انتهاء: ${expiry}${optionsData[ticker]?.isSimulated?' (محاكاة)':' ✅ حي'}`;
+  updateOptionsTable();
+  if(isChartReady)updateCharts();
+};
+
+/* ── UI Renderers ── */
+function updateStocksGrid(){
+  const grid=document.getElementById('stocks-grid');if(!grid)return;
+  if(!Object.keys(stockData).length){
+    grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted)">لا توجد بيانات</div>';
+    return;
+  }
+  grid.innerHTML=TICKERS.map(tk=>{
+    const d=stockData[tk];if(!d)return'';
+    const up=d.change>=0,pct=d.changePercent||0;
+    const bw=Math.min(Math.max(50+pct*5,5),95);
+    return`<div class="stock-card ${up?'up':'down'} ${currentTicker===tk?'selected':''}" onclick="selectTicker('${tk}')">
+      <div class="sc-header">
+        <div class="sc-ticker">${tk}</div>
+        <div class="sc-badge ${up?'badge-up':'badge-down'}">${up?'▲':'▼'} ${up?'+':''}${pct.toFixed(2)}%</div>
+      </div>
+      <div class="sc-price">$${d.price.toFixed(2)}</div>
+      <div class="sc-change ${up?'up':'down'}">${up?'+':''}$${d.change.toFixed(2)} ${up?'▲':'▼'}</div>
+      <div class="sc-stats">
+        <span>Vol: ${(d.volume/1e6).toFixed(1)}M</span>
+        <span>H: $${(d.dayHigh||0).toFixed(2)}</span>
+        <span>L: $${(d.dayLow||0).toFixed(2)}</span>
+      </div>
+      <div class="sc-bar"><div class="sc-bar-fill" style="width:${bw}%;background:${up?'var(--green)':'var(--red)'}"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function updateOptionsTable(){
+  const tbody=document.getElementById('options-tbody');if(!tbody)return;
+  const opt=optionsData[currentTicker];
+  if(!opt){tbody.innerHTML='<tr><td colspan="15" class="loading-cell"><div class="text-muted">لا توجد بيانات</div></td></tr>';return;}
+  const lbl=document.getElementById('options-expiry-label');
+  if(lbl)lbl.textContent=`انتهاء: ${opt.expiry}${opt.isSimulated?' (محاكاة)':' ✅ حي'}`;
+  let contracts=[...opt.contracts];
+  if(currentTab==='calls')contracts=contracts.filter(c=>c.type==='call');
+  if(currentTab==='puts')contracts=contracts.filter(c=>c.type==='put');
+  contracts.sort((a,b)=>a.strike-b.strike);
+  if(!contracts.length){tbody.innerHTML='<tr><td colspan="15" class="loading-cell"><div class="text-muted">لا توجد بيانات</div></td></tr>';return;}
+  const S=stockData[currentTicker]?.price||0;
+  tbody.innerHTML=contracts.map(c=>{
+    const g=c.greeks;
+    const chgC=c.changePct>=0?'text-green':'text-red';
+    const sw=(c.score*80).toFixed(0);
+    const sc=c.score>0.65?'var(--green)':c.score>0.40?'var(--yellow)':'var(--red)';
+    const dist=S?((c.strike-S)/S*100).toFixed(1):'0';
+    const distL=c.strike>S?`+${dist}%`:`${dist}%`;
+    const lp=c.lastPrice>0?'$'+c.lastPrice.toFixed(2):'--';
+    return`<tr class="${c.type==='call'?'call-row':'put-row'} ${c.inTheMoney?'itm':''}"
+        onclick="showGreeks('${currentTicker}',${c.strike},'${c.type}')" style="cursor:pointer">
+      <td><span class="type-badge ${c.type==='call'?'type-call':'type-put'}">${c.type.toUpperCase()}</span></td>
+      <td><strong>$${c.strike.toFixed(1)}</strong> <span style="font-size:10px;color:var(--muted)">${distL}</span></td>
+      <td><strong>${lp}</strong></td>
+      <td class="text-muted">${c.bid>0?'$'+c.bid.toFixed(2):'--'}</td>
+      <td class="text-muted">${c.ask>0?'$'+c.ask.toFixed(2):'--'}</td>
+      <td class="${chgC}">${c.changePct>=0?'+':''}${c.changePct.toFixed(2)}%</td>
+      <td>${c.volume>0?c.volume.toLocaleString():'--'}</td>
+      <td>${c.openInterest>0?c.openInterest.toLocaleString():'--'}</td>
+      <td>${c.impliedVolatility>0?(c.impliedVolatility*100).toFixed(1)+'%':'--'}</td>
+      <td class="${Math.abs(g.delta||0)>0.5?'text-green':'text-muted'}">${g.delta!==undefined?g.delta.toFixed(3):'--'}</td>
+      <td class="text-muted">${g.gamma!==undefined?g.gamma.toFixed(4):'--'}</td>
+      <td class="text-red">${g.theta!==undefined?g.theta.toFixed(3):'--'}</td>
+      <td><div class="score-bar"><div class="score-fill" style="width:${sw}px;background:${sc}"></div><span style="font-size:11px;color:${sc}">${(c.score*100).toFixed(0)}</span></div></td>
+      <td><span class="itm-badge ${c.inTheMoney?'itm-yes':'itm-no'}">${c.inTheMoney?'ITM':'OTM'}</span></td>
+      <td><button class="trade-btn ${c.type==='call'?'trade-btn-call':'trade-btn-put'}"
+        onclick="event.stopPropagation();openModal('${currentTicker}','${c.type}',${c.strike},${c.lastPrice||0})">تداول</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function showGreeks(ticker,strike,type){
+  const opt=optionsData[ticker];if(!opt)return;
+  const c=opt.contracts.find(x=>x.strike===strike&&x.type===type);if(!c)return;
+  const g=c.greeks;
+  const lbl=document.getElementById('greeks-ticker-label');
+  if(lbl)lbl.textContent=`${ticker} ${type.toUpperCase()} $${strike} | IV: ${(c.impliedVolatility*100).toFixed(1)}%`;
+  const items=[
+    {s:'Δ',n:'Delta',v:g.delta!==undefined?g.delta.toFixed(3):'--',d:`لكل $1 تغير في السهم العقد يتغير $${((g.delta||0)*100).toFixed(2)}`,c:Math.abs(g.delta||0)>0.5?'var(--green)':'var(--yellow)'},
+    {s:'Γ',n:'Gamma',v:g.gamma!==undefined?g.gamma.toFixed(4):'--',d:'معدل تغيّر Delta مقابل $1 حركة',c:'var(--accent)'},
+    {s:'Θ',n:'Theta',v:g.theta!==undefined?g.theta.toFixed(3)+'/يوم':'--',d:`العقد يفقد $${Math.abs((g.theta||0)*100).toFixed(2)} يومياً`,c:'var(--red)'},
+    {s:'ν',n:'Vega',v:g.vega!==undefined?g.vega.toFixed(3):'--',d:`لكل 1% زيادة في IV العقد يتغير $${((g.vega||0)*100).toFixed(2)}`,c:'var(--purple)'},
+    {s:'ρ',n:'Rho',v:g.rho!==undefined?g.rho.toFixed(3):'--',d:'لكل 1% تغير في أسعار الفائدة',c:'var(--muted)'}
+  ];
+  const grid=document.getElementById('greeks-grid');
+  if(grid)grid.innerHTML=items.map(x=>`<div class="greek-card"><div class="greek-symbol" style="color:${x.c}">${x.s}</div><div class="greek-name">${x.n}</div><div class="greek-value" style="color:${x.c}">${x.v}</div><div class="greek-desc">${x.d}</div></div>`).join('');
+  const ad=Math.abs(g.delta||0);
+  const di=ad>0.7?'عقد عميق ITM — يتحرك مثل السهم':ad>0.5?'عقد ITM — حساسية عالية':ad>0.3?'عقد ATM — أفضل للـ Day Trading':'عقد OTM — Leverage عالي';
+  const exp=document.getElementById('greeks-explanation');
+  if(exp)exp.innerHTML=`<strong style="color:var(--text)">📊 قراءة Greeks:</strong> <span style="margin-right:8px">${di}</span> — Theta يكلّفك <strong style="color:var(--red)">$${Math.abs((g.theta||0)*100).toFixed(2)}</strong> يومياً — إذا ارتفعت IV بـ 5%، Vega تجلب <strong style="color:var(--purple)">$${((g.vega||0)*5).toFixed(2)}</strong>`;
+  if(isChartReady)updateGreeksChart(c);
+}
+
+function updateTopTrades(){
+  let all=[];
+  Object.entries(optionsData).forEach(([tk,d])=>{
+    d.contracts.forEach(c=>{
+      if(c.volume>=100&&c.lastPrice>=0.5&&c.lastPrice<=50&&c.impliedVolatility>=0.15&&c.impliedVolatility<=1.5)
+        all.push({ticker:tk,...c});
+    });
+  });
+  const top5=all.sort((a,b)=>b.score-a.score).slice(0,5);
+  const container=document.getElementById('top-trades-grid');if(!container)return;
+  if(!top5.length){container.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:30px">اضغط تحديث لتحميل البيانات</div>';return;}
+  const rc=['rank-1','rank-2','rank-3','rank-other','rank-other'];
+  const tc={NVDA:'var(--green)',AAPL:'#9CA3AF',MSFT:'var(--accent)',TSLA:'var(--red)'};
+  container.innerHTML=top5.map((t,i)=>{
+    const isCall=t.type==='call';
+    const tp=isCall?(t.ticker==='TSLA'?45:30):(t.ticker==='TSLA'?50:35);
+    const pp=(t.lastPrice*tp/100*100).toFixed(0);
+    const rk=(t.lastPrice*20/100*100).toFixed(0);
+    const sb=(t.score*100).toFixed(0);
+    const trend=stockData[t.ticker]?.change>=0?'▲':'▼';
+    return`<div class="top-trade-card">
+      <div class="rank-badge ${rc[i]}">${i+1}</div>
+      <div style="text-align:center;padding-top:8px">
+        <div class="ttc-ticker" style="color:${tc[t.ticker]||'var(--text)'}">${t.ticker} ${trend}</div>
+        <div class="ttc-type">${t.type.toUpperCase()} · Strike $${t.strike}</div>
+        <div class="ttc-price" style="color:${isCall?'var(--green)':'var(--red)'}">$${t.lastPrice.toFixed(2)}</div>
+      </div>
+      <div class="ttc-stats">
+        <div class="ttc-stat"><span class="label">Volume</span><span class="font-mono">${t.volume.toLocaleString()}</span></div>
+        <div class="ttc-stat"><span class="label">IV</span><span class="font-mono">${(t.impliedVolatility*100).toFixed(1)}%</span></div>
+        <div class="ttc-stat"><span class="label">Delta Δ</span><span class="font-mono">${(t.greeks.delta||0).toFixed(3)}</span></div>
+        <div class="ttc-stat"><span class="label">Theta Θ</span><span class="font-mono text-red">${(t.greeks.theta||0).toFixed(3)}</span></div>
+        <div class="ttc-stat"><span class="label">OI</span><span class="font-mono">${t.openInterest.toLocaleString()}</span></div>
+      </div>
+      <div class="ttc-targets">
+        <span class="target-up">🎯 +${tp}% = $${pp}</span>
+        <span class="target-down">🛑 -20% = $${rk}</span>
+      </div>
+      <div class="score-display">
+        <span class="text-muted">Score</span>
+        <div class="score-track"><div style="height:100%;width:${sb}%;background:var(--yellow);border-radius:2px"></div></div>
+        <span class="score-val">${sb}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateTickerBanner(){
+  const el=document.getElementById('live-ticker');if(!el)return;
+  const items=TICKERS.map(tk=>{
+    const d=stockData[tk];if(!d)return'';
+    const up=d.change>=0;
+    return`<span class="ticker-item"><strong>${tk}</strong><span>$${d.price.toFixed(2)}</span><span class="${up?'tick-up':'tick-down'}">${up?'▲':'▼'}${up?'+':''}${d.changePercent.toFixed(2)}%</span></span>`;
+  }).filter(Boolean).join('');
+  el.innerHTML=items+items;
+}
+
+/* ── Charts ── */
+function initCharts(){
+  const gc='rgba(255,255,255,0.04)',tc='#5A7090';
+  const base={responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},ticks:{color:tc,font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.06)'},ticks:{color:tc,font:{size:10}}}}};
+  const vc=document.getElementById('volumeChart');
+  const ic=document.getElementById('ivChart');
+  const grc=document.getElementById('greeksChart');
+  if(vc)charts.volume=new Chart(vc,{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:'rgba(59,130,246,0.5)',borderColor:'var(--accent)',borderWidth:1}]},options:{...base}});
+  if(ic)charts.iv=new Chart(ic,{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'var(--yellow)',backgroundColor:'rgba(245,158,11,0.1)',fill:true,tension:0.4,pointRadius:3}]},options:{...base}});
+  if(grc)charts.greeks=new Chart(grc,{type:'radar',data:{labels:['Delta','Gamma','Theta','Vega','Rho'],datasets:[{data:[0,0,0,0,0],borderColor:'var(--purple)',backgroundColor:'rgba(139,92,246,0.15)',pointBackgroundColor:'var(--purple)',pointRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{r:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{display:false},pointLabels:{color:'#5A7090',font:{size:11}}}}}});
+  isChartReady=true;
+}
+
+function updateCharts(){
+  if(!isChartReady||!optionsData[currentTicker])return;
+  const calls=optionsData[currentTicker].contracts.filter(c=>c.type==='call').sort((a,b)=>a.strike-b.strike).slice(0,15);
+  if(charts.volume){charts.volume.data.labels=calls.map(c=>'$'+c.strike);charts.volume.data.datasets[0].data=calls.map(c=>c.volume);charts.volume.update('none');}
+  if(charts.iv){charts.iv.data.labels=calls.map(c=>'$'+c.strike);charts.iv.data.datasets[0].data=calls.map(c=>+(c.impliedVolatility*100).toFixed(1));charts.iv.update('none');}
+}
+
+function updateGreeksChart(c){
+  if(!charts.greeks||!c)return;
+  const g=c.greeks;
+  charts.greeks.data.datasets[0].data=[Math.abs(g.delta||0)*100,Math.min((g.gamma||0)*1000,100),Math.min(Math.abs(g.theta||0)*1000,100),Math.min((g.vega||0)*100,100),Math.min(Math.abs(g.rho||0)*100,100)];
+  charts.greeks.update('none');
+}
+
+/* ── Trade ── */
+function openModal(ticker,type,strike,price){
+  if(price<=0){showNotif('⚠️ لا يمكن تداول عقد بسعر صفر');return;}
+  pendingTrade={ticker,type,strike,price,entryTime:new Date()};
+  const isCall=type==='call';
+  const s=stockData[ticker];
+  const tp=isCall?(ticker==='TSLA'?45:30):(ticker==='TSLA'?50:35);
+  const rows=document.getElementById('modal-rows');
+  if(rows)rows.innerHTML=[
+    ['السهم',ticker],
+    ['نوع الخيار',`<span class="type-badge ${isCall?'type-call':'type-put'}">${type.toUpperCase()}</span>`],
+    ['Strike Price','$'+strike],
+    ['سعر العقد','$'+price.toFixed(2)],
+    ['سعر السهم',s?'$'+s.price.toFixed(2):'--'],
+    ['قيمة العقد (×100)','$'+(price*100).toFixed(0)],
+    ['هدف الربح',`+${tp}% → $${(price*(1+tp/100)).toFixed(2)}`],
+    ['وقف الخسارة',`-20% → $${(price*0.8).toFixed(2)}`]
+  ].map(([l,v])=>`<div class="modal-row"><span class="label">${l}</span><span class="val">${v}</span></div>`).join('');
+  const modal=document.getElementById('trade-modal');
+  if(modal)modal.style.display='flex';
+}
+
+function closeModal(){
+  const modal=document.getElementById('trade-modal');
+  if(modal)modal.style.display='none';
+  pendingTrade=null;
+}
+
+function confirmTrade(){
+  if(!pendingTrade)return;
+  const t=pendingTrade;
+  activeTrades.push({...t,id:Date.now(),contracts:1,currentPrice:t.price,pnl:0});
+  closeModal();
+  updateActiveTradesList();
+  showNotif('✅ تم تنفيذ: '+t.ticker+' '+t.type.toUpperCase()+' $'+t.strike+' | دفعت $'+(t.price*100).toFixed(0));
+  if(!window._pnlInterval){
+    window._pnlInterval=setInterval(()=>{
+      activeTrades.forEach(tr=>{tr.currentPrice=Math.max(0.01,tr.currentPrice*(1+(Math.random()-0.48)*0.05));tr.pnl=(tr.currentPrice-tr.price)*100;});
+      updateActiveTradesList();
+    },3000);
+  }
+}
+
+function closeTrade(id){
+  const idx=activeTrades.findIndex(t=>t.id===id);if(idx<0)return;
+  const t=activeTrades[idx];
+  const pnl=(t.currentPrice-t.price)*100;
+  activeTrades.splice(idx,1);
+  updateActiveTradesList();
+  showNotif((pnl>=0?'✅ ربح':'❌ خسارة')+': '+t.ticker+' '+t.type.toUpperCase()+' | '+(pnl>=0?'+':'')+'$'+pnl.toFixed(0));
+}
+
+function updateActiveTradesList(){
+  const list=document.getElementById('active-trades-list');
+  const cnt=document.getElementById('trades-count');
+  if(cnt)cnt.textContent=activeTrades.length?activeTrades.length+' صفقة نشطة':'لا توجد صفقات';
+  if(!list)return;
+  if(!activeTrades.length){list.innerHTML='<div class="text-muted text-center" style="padding:20px">لا توجد صفقات نشطة</div>';return;}
+  list.innerHTML=activeTrades.map(t=>{
+    const pos=t.pnl>=0;
+    const pct=((t.currentPrice-t.price)/t.price*100).toFixed(1);
+    return`<div class="active-trade">
+      <div class="at-icon">${t.type==='call'?'📈':'📉'}</div>
+      <div class="at-info">
+        <div class="at-title">${t.ticker} ${t.type.toUpperCase()} $${t.strike}</div>
+        <div class="at-sub">دخل @ $${t.price.toFixed(2)} · الآن $${t.currentPrice.toFixed(2)}</div>
+      </div>
+      <div class="at-pnl">
+        <div class="at-pnl-val" style="color:${pos?'var(--green)':'var(--red)'}">${pos?'+':''}$${t.pnl.toFixed(0)}</div>
+        <div style="font-size:11px;color:${pos?'var(--green)':'var(--red)'}">${pos?'+':''}${pct}%</div>
+      </div>
+      <button class="at-close" onclick="closeTrade(${t.id})">إغلاق</button>
+    </div>`;
+  }).join('');
+}
+
+/* ── Utils ── */
+let statusTO=null;
+function showStatus(msg,color,dur){
+  const el=document.getElementById('status-overlay');if(!el)return;
+  el.textContent=msg;
+  el.style.color=color==='green'?'var(--green)':color==='red'?'var(--red)':color==='yellow'?'var(--yellow)':'var(--accent)';
+  el.classList.add('show');
+  clearTimeout(statusTO);
+  if(dur)statusTO=setTimeout(()=>el.classList.remove('show'),dur);
+}
+let notifTO=null;
+function showNotif(msg){
+  const el=document.getElementById('notif');if(!el)return;
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(notifTO);notifTO=setTimeout(()=>el.classList.remove('show'),4000);
+}
+
+/* ── Global ── */
+window.selectTicker=async function(tk){
+  currentTicker=tk;currentExpiry=null;
+  document.querySelectorAll('.ticker-pill').forEach(b=>b.classList.toggle('active',b.textContent===tk));
+  updateStocksGrid();
+  await loadOptionsForTicker(tk);
+  updateOptionsTable();updateTopTrades();
+  if(isChartReady)updateCharts();
+};
+window.switchTab=function(tab){
+  currentTab=tab;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',(tab==='all'&&b.textContent==='الكل')||(tab==='calls'&&b.textContent.includes('CALLS'))||(tab==='puts'&&b.textContent.includes('PUTS'))));
+  updateOptionsTable();
+};
+window.showGreeks=showGreeks;
+window.openModal=openModal;
+window.closeModal=closeModal;
+window.confirmTrade=confirmTrade;
+window.closeTrade=closeTrade;
+window.fetchAllData=fetchAllData;
+
+let autoOn=true;
+window.toggleAuto=function(){
+  autoOn=!autoOn;
+  const btn=document.getElementById('auto-btn');
+  if(autoOn){autoInterval=setInterval(fetchAllData,60000);if(btn){btn.textContent='⏸ تلقائي (60s)';btn.classList.add('active');}}
+  else{clearInterval(autoInterval);if(btn){btn.textContent='▶ تشغيل تلقائي';btn.classList.remove('active');}}
+};
+
+document.addEventListener('DOMContentLoaded',()=>{
+  initCharts();
+  fetchAllData();
+  autoInterval=setInterval(fetchAllData,60000);
+});
+document.getElementById('trade-modal')?.addEventListener('click',function(e){if(e.target===this)closeModal();});
+
+})();
+</script>
+</body>
+</html>
