@@ -1,0 +1,1327 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>نظام تداول الخيارات المتقدم</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" crossorigin="anonymous">
+<style>
+  :root {
+    --bg: #070B14;
+    --surface: #0D1525;
+    --surface2: #121C30;
+    --border: rgba(255,255,255,0.07);
+    --border-bright: rgba(99,179,255,0.3);
+    --text: #E2EAF8;
+    --muted: #5A7090;
+    --accent: #3B82F6;
+    --accent2: #06B6D4;
+    --green: #10D981;
+    --red: #EF4444;
+    --yellow: #F59E0B;
+    --purple: #8B5CF6;
+    --font-ar: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--font-ar);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 40% at 20% 10%, rgba(59,130,246,0.06) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 30% at 80% 80%, rgba(6,182,212,0.04) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .z1 { position: relative; z-index: 1; }
+  .ticker-wrap {
+    background: rgba(13,21,37,0.95);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    height: 36px;
+    display: flex;
+    align-items: center;
+  }
+  .ticker-label {
+    background: var(--accent);
+    padding: 0 16px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+    z-index: 2;
+  }
+  .ticker-inner {
+    display: flex;
+    gap: 40px;
+    animation: ticker 35s linear infinite;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .ticker-item { display: flex; align-items: center; gap: 8px; }
+  .tick-up { color: var(--green); }
+  .tick-down { color: var(--red); }
+  header {
+    background: rgba(7,11,20,0.9);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 20px rgba(59,130,246,0.3);
+  }
+  .logo-text h1 { font-size: 16px; font-weight: 700; }
+  .logo-text p { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(16,217,129,0.1);
+    border: 1px solid rgba(16,217,129,0.25);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--green);
+  }
+  .live-dot {
+    width: 7px; height: 7px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 1.5s ease infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(16,217,129,0.5); }
+    50% { box-shadow: 0 0 0 6px rgba(16,217,129,0); }
+  }
+  .hdr-actions { display: flex; gap: 8px; }
+  .btn {
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-ar);
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #2563EB; box-shadow: 0 0 15px rgba(59,130,246,0.4); }
+  .btn-ghost { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--border-bright); }
+  .btn-ghost.active { background: rgba(16,217,129,0.1); border-color: rgba(16,217,129,0.4); color: var(--green); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .layout { padding: 20px 24px; max-width: 1600px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-title { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card-title .dot { width: 3px; height: 18px; border-radius: 2px; }
+  .card-body { padding: 16px 20px; }
+  .stocks-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stock-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .stock-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .stock-card:hover { border-color: var(--border-bright); transform: translateY(-1px); }
+  .stock-card:hover::before { opacity: 1; }
+  .stock-card.selected { border-color: rgba(59,130,246,0.5); background: rgba(59,130,246,0.05); }
+  .stock-card.up::before { background: var(--green); }
+  .stock-card.down::before { background: var(--red); }
+  .sc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .sc-ticker { font-size: 14px; font-weight: 700; font-family: var(--font-mono); }
+  .sc-badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; font-family: var(--font-mono); }
+  .badge-up { background: rgba(16,217,129,0.15); color: var(--green); }
+  .badge-down { background: rgba(239,68,68,0.15); color: var(--red); }
+  .sc-price { font-size: 26px; font-weight: 700; font-family: var(--font-mono); margin-bottom: 4px; }
+  .sc-change { font-size: 13px; font-family: var(--font-mono); }
+  .sc-change.up { color: var(--green); }
+  .sc-change.down { color: var(--red); }
+  .sc-stats { margin-top: 10px; display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+  .sc-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+  .sc-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+  .greeks-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .greek-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+  .greek-name { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .greek-symbol { font-size: 18px; font-weight: 700; font-family: var(--font-mono); }
+  .greek-value { font-size: 20px; font-weight: 700; font-family: var(--font-mono); }
+  .greek-desc { font-size: 10px; color: var(--muted); margin-top: 4px; }
+  .options-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .tab-btn {
+    padding: 7px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: var(--font-ar);
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .tab-btn.active { background: var(--surface2); color: var(--text); border-color: var(--border-bright); }
+  .ticker-selector { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ticker-pill {
+    padding: 5px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .ticker-pill.active { background: var(--accent); color: white; border-color: var(--accent); }
+  .options-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .options-table th {
+    padding: 10px 12px;
+    text-align: right;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .options-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .options-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .options-table tr.call-row td:first-child { border-right: 2px solid var(--green); }
+  .options-table tr.put-row td:first-child { border-right: 2px solid var(--red); }
+  .options-table tr.itm { background: rgba(16,217,129,0.03); }
+  .type-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; font-family: var(--font-mono); }
+  .type-call { background: rgba(16,217,129,0.15); color: var(--green); }
+  .type-put { background: rgba(239,68,68,0.15); color: var(--red); }
+  .itm-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+  .itm-yes { background: rgba(16,217,129,0.1); color: var(--green); border: 1px solid rgba(16,217,129,0.3); }
+  .itm-no { background: rgba(90,112,144,0.15); color: var(--muted); border: 1px solid var(--border); }
+  .score-bar { display: flex; align-items: center; gap: 6px; }
+  .score-fill { height: 4px; border-radius: 2px; background: var(--accent); }
+  .trade-btn {
+    padding: 4px 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font-ar);
+    transition: all 0.15s;
+  }
+  .trade-btn-call { background: rgba(16,217,129,0.15); color: var(--green); border: 1px solid rgba(16,217,129,0.3); }
+  .trade-btn-call:hover { background: var(--green); color: #000; }
+  .trade-btn-put { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .trade-btn-put:hover { background: var(--red); color: white; }
+  .top-trades-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  .top-trade-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s;
+  }
+  .top-trade-card:hover { border-color: var(--border-bright); transform: translateY(-2px); }
+  .rank-badge {
+    position: absolute;
+    top: 12px; left: 12px;
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700;
+    font-family: var(--font-mono);
+  }
+  .rank-1 { background: rgba(245,158,11,0.2); color: var(--yellow); border: 1px solid rgba(245,158,11,0.4); }
+  .rank-2 { background: rgba(156,163,175,0.2); color: #9CA3AF; border: 1px solid rgba(156,163,175,0.3); }
+  .rank-3 { background: rgba(180,120,60,0.2); color: #B47C3C; border: 1px solid rgba(180,120,60,0.3); }
+  .rank-other { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+  .ttc-ticker { font-size: 18px; font-weight: 700; font-family: var(--font-mono); margin-bottom: 2px; }
+  .ttc-type { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .ttc-price { font-size: 22px; font-weight: 700; font-family: var(--font-mono); margin-bottom: 12px; }
+  .ttc-stats { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+  .ttc-stat { display: flex; justify-content: space-between; }
+  .ttc-stat .label { color: var(--muted); }
+  .ttc-targets { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 12px; }
+  .target-up { color: var(--green); font-weight: 700; }
+  .target-down { color: var(--red); font-weight: 700; }
+  .score-display { margin-top: 8px; display: flex; align-items: center; gap: 8px; font-size: 11px; }
+  .score-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; }
+  .score-val { font-family: var(--font-mono); font-size: 12px; font-weight: 600; color: var(--yellow); }
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .active-trade {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: all 0.3s;
+  }
+  .at-icon { font-size: 22px; width: 40px; text-align: center; }
+  .at-info { flex: 1; }
+  .at-title { font-size: 14px; font-weight: 700; font-family: var(--font-mono); }
+  .at-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .at-pnl { text-align: right; }
+  .at-pnl-val { font-size: 18px; font-weight: 700; font-family: var(--font-mono); }
+  .at-close {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(239,68,68,0.3);
+    background: rgba(239,68,68,0.1);
+    color: var(--red);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+  .at-close:hover { background: var(--red); color: white; }
+  .risk-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .risk-card { border-radius: 10px; padding: 14px; border: 1px solid; }
+  .risk-title { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .risk-desc { font-size: 11px; line-height: 1.6; }
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .modal-overlay.open { display: flex; opacity: 1; }
+  .modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 16px;
+    padding: 28px;
+    max-width: 440px; width: 100%;
+    margin: 16px;
+    box-shadow: 0 0 60px rgba(59,130,246,0.15);
+    transform: scale(0.95);
+    transition: transform 0.25s ease;
+  }
+  .modal-overlay.open .modal-box { transform: scale(1); }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; text-align: center; }
+  .modal-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .modal-row .label { color: var(--muted); }
+  .modal-row .val { font-weight: 700; font-family: var(--font-mono); }
+  .modal-warning {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    color: var(--yellow);
+    margin-top: 16px; margin-bottom: 20px;
+    line-height: 1.7;
+  }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions .btn { flex: 1; justify-content: center; padding: 10px; }
+  .btn-confirm { background: var(--green); color: #000; font-weight: 700; }
+  .btn-confirm:hover { background: #0abb6e; }
+  .btn-cancel { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .notif {
+    position: fixed;
+    top: 80px; right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    z-index: 200;
+    max-width: 300px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    transform: translateX(20px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+  }
+  .notif.show { transform: translateX(0); opacity: 1; pointer-events: auto; }
+  .loading-cell { text-align: center; padding: 40px; color: var(--muted); }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #status-overlay {
+    position: fixed;
+    top: 85px; left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-size: 13px;
+    z-index: 60;
+    display: none;
+    white-space: nowrap;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  #status-overlay.show { display: block; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #1e3050; border-radius: 3px; }
+  .overflow-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .space-y > * + * { margin-top: 10px; }
+  .text-green { color: var(--green); }
+  .text-red { color: var(--red); }
+  .text-yellow { color: var(--yellow); }
+  .text-muted { color: var(--muted); }
+  .font-mono { font-family: var(--font-mono); }
+  .text-center { text-align: center; }
+  .ai-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(139,92,246,0.1);
+    border: 1px solid rgba(139,92,246,0.3);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--purple);
+    font-weight: 600;
+  }
+  @media (max-width: 1200px) {
+    .stocks-grid { grid-template-columns: repeat(2, 1fr); }
+    .top-trades-grid { grid-template-columns: repeat(3, 1fr); }
+    .charts-row { grid-template-columns: 1fr 1fr; }
+    .greeks-grid { grid-template-columns: repeat(5, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .layout { padding: 12px; }
+    .stocks-grid { grid-template-columns: 1fr 1fr; }
+    .top-trades-grid { grid-template-columns: 1fr 1fr; }
+    .charts-row { grid-template-columns: 1fr; }
+    .greeks-grid { grid-template-columns: repeat(3, 1fr); }
+    .risk-grid { grid-template-columns: 1fr 1fr; }
+    header { flex-wrap: wrap; gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="ticker-wrap z1">
+  <div class="ticker-label">📡 LIVE</div>
+  <div style="overflow:hidden;flex:1">
+    <div class="ticker-inner" id="live-ticker">
+      <span class="text-muted">جاري الاتصال...</span>
+    </div>
+  </div>
+</div>
+
+<header class="z1">
+  <div class="logo">
+    <div class="logo-icon">📈</div>
+    <div class="logo-text">
+      <h1>نظام تداول الخيارات المتقدم</h1>
+      <p id="conn-status">يتصل بـ Finnhub API (بيانات حية)...</p>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="status-pill">
+      <div class="live-dot"></div>
+      <span id="last-update-text">--</span>
+    </div>
+    <div class="hdr-actions">
+      <button class="btn btn-primary" onclick="fetchAllData()" id="refresh-btn">🔄 تحديث</button>
+      <button class="btn btn-ghost active" onclick="toggleAuto()" id="auto-btn">⏸ تلقائي (60s)</button>
+    </div>
+  </div>
+</header>
+
+<div id="status-overlay" class="z1"></div>
+
+<div class="layout z1">
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="dot" style="background:var(--green)"></span>
+        أسعار الأسهم المباشرة
+      </div>
+      <div class="ai-badge">📡 Finnhub API + محاكاة</div>
+    </div>
+    <div class="card-body">
+      <div class="stocks-grid" id="stocks-grid">
+        <div class="stock-card" style="grid-column:1/-1;text-align:center;padding:30px">
+          <div class="spinner"></div>
+          <div class="text-muted">جاري تحميل البيانات...</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="dot" style="background:var(--purple)"></span>
+        🧮 مؤشرات Greeks (للعقد المحدد)
+      </div>
+      <div id="greeks-ticker-label" class="text-muted" style="font-size:12px">اختر عقداً من الجدول أدناه</div>
+    </div>
+    <div class="card-body">
+      <div class="greeks-grid" id="greeks-grid">
+        <div class="greek-card"><div class="greek-name">Δ Delta</div><div class="greek-value text-muted">--</div></div>
+        <div class="greek-card"><div class="greek-name">Γ Gamma</div><div class="greek-value text-muted">--</div></div>
+        <div class="greek-card"><div class="greek-name">Θ Theta</div><div class="greek-value text-muted">--</div></div>
+        <div class="greek-card"><div class="greek-name">ν Vega</div><div class="greek-value text-muted">--</div></div>
+        <div class="greek-card"><div class="greek-name">ρ Rho</div><div class="greek-value text-muted">--</div></div>
+      </div>
+      <div id="greeks-explanation" style="margin-top:14px;font-size:12px;color:var(--muted);line-height:1.8"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="dot" style="background:var(--yellow)"></span>
+        سلسلة الخيارات (Options Chain)
+      </div>
+      <div class="ticker-selector" id="ticker-selector">
+        <button class="ticker-pill active" onclick="selectTicker('NVDA')">NVDA</button>
+        <button class="ticker-pill" onclick="selectTicker('AAPL')">AAPL</button>
+        <button class="ticker-pill" onclick="selectTicker('MSFT')">MSFT</button>
+        <button class="ticker-pill" onclick="selectTicker('TSLA')">TSLA</button>
+      </div>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div style="padding:12px 20px 0;display:flex;gap:8px;align-items:center">
+        <div class="options-tabs">
+          <button class="tab-btn active" onclick="switchTab('all')">الكل</button>
+          <button class="tab-btn" onclick="switchTab('calls')">CALLS 📈</button>
+          <button class="tab-btn" onclick="switchTab('puts')">PUTS 📉</button>
+        </div>
+        <div id="options-expiry" class="text-muted" style="font-size:12px;margin-right:auto"></div>
+      </div>
+      <div class="overflow-x" style="padding:12px 0">
+        <table class="options-table">
+          <thead>
+            <tr>
+              <th>النوع</th><th>Strike</th><th>Last</th><th>Bid</th><th>Ask</th>
+              <th>Change</th><th>Volume</th><th>OI</th><th>IV</th>
+              <th>Delta Δ</th><th>Theta Θ</th><th>Score</th><th>ITM</th><th>إجراء</th>
+            </tr>
+          </thead>
+          <tbody id="options-tbody">
+            <tr><td colspan="14" class="loading-cell">
+              <div class="text-muted">اختر سهماً لعرض بيانات الخيارات</div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="dot" style="background:var(--yellow)"></span>
+        🏆 أفضل 5 فرص تداول اليوم
+      </div>
+      <div class="ai-badge">✨ AI Score Engine</div>
+    </div>
+    <div class="card-body">
+      <div class="top-trades-grid" id="top-trades-grid">
+        <div style="grid-column:1/-1;text-align:center;padding:30px;color:var(--muted)">
+          انتظر تحميل البيانات لحساب أفضل الصفقات...
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--accent)"></span>حجم التداول</div></div>
+      <div class="card-body"><canvas id="volumeChart" height="160"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--yellow)"></span>التقلب الضمني IV</div></div>
+      <div class="card-body"><canvas id="ivChart" height="160"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title"><span class="dot" style="background:var(--purple)"></span>Greeks Overview</div></div>
+      <div class="card-body"><canvas id="greeksChart" height="160"></canvas></div>
+    </div>
+  </div>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="dot" style="background:var(--accent2)"></span>
+        الصفقات النشطة
+      </div>
+      <div id="trades-count" class="text-muted" style="font-size:12px">لا توجد صفقات</div>
+    </div>
+    <div class="card-body">
+      <div class="space-y" id="active-trades-list">
+        <div class="text-muted text-center" style="padding:20px">لا توجد صفقات نشطة — اضغط "تداول" على أي عقد</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <span class="dot" style="background:var(--red)"></span>
+        ⚠️ إدارة المخاطر — قواعد إلزامية
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="risk-grid">
+        <div class="risk-card" style="background:rgba(239,68,68,0.05);border-color:rgba(239,68,68,0.2)">
+          <div class="risk-title text-red">⏰ Day Trade فقط</div>
+          <div class="risk-desc text-muted">أغلق جميع المراكز قبل 15 دقيقة من إغلاق السوق. لا تحتفظ بأي خيار طوال الليل.</div>
+        </div>
+        <div class="risk-card" style="background:rgba(245,158,11,0.05);border-color:rgba(245,158,11,0.2)">
+          <div class="risk-title text-yellow">🛑 وقف الخسارة الإلزامي</div>
+          <div class="risk-desc text-muted">-20% من قيمة العقد = خروج فوري بلا تردد. -50% = كارثة يجب تجنبها بالكامل.</div>
+        </div>
+        <div class="risk-card" style="background:rgba(59,130,246,0.05);border-color:rgba(59,130,246,0.2)">
+          <div class="risk-title" style="color:var(--accent)">💵 قاعدة 2%</div>
+          <div class="risk-desc text-muted">لا تضع أكثر من 2% من رأس مالك الكلي في صفقة واحدة. الحساب: (رأس المال × 2%) ÷ سعر العقد.</div>
+        </div>
+        <div class="risk-card" style="background:rgba(139,92,246,0.05);border-color:rgba(139,92,246,0.2)">
+          <div class="risk-title" style="color:var(--purple)">📰 تجنب الأخبار</div>
+          <div class="risk-desc text-muted">لا تتداول في يوم الأرباح، CPI، FOMC. IV ترتفع قبل الأخبار وتنهار بعدها (Volatility Crush).</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="modal-overlay" id="trade-modal">
+  <div class="modal-box">
+    <div class="modal-title">⚡ تنفيذ الصفقة</div>
+    <div id="modal-rows"></div>
+    <div class="modal-warning" id="modal-warning"></div>
+    <div class="modal-actions">
+      <button class="btn btn-confirm" onclick="confirmTrade()">✅ تأكيد التنفيذ</button>
+      <button class="btn btn-cancel" onclick="closeModal()">❌ إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div class="notif" id="notif"></div>
+
+<script>
+(function() {
+  "use strict";
+
+  const TICKERS = ['NVDA','AAPL','MSFT','TSLA'];
+  let stockData = {};
+  let optionsData = {};
+  let activeTrades = [];
+  let currentTicker = 'NVDA';
+  let currentTab = 'all';
+  let autoInterval = null;
+  let pendingTrade = null;
+  let charts = {};
+  let isChartReady = false;
+
+  /* ── Black-Scholes helpers ── */
+  function normalCDF(x) {
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x) / Math.sqrt(2);
+    const t = 1 / (1 + p * x);
+    const y = 1 - (((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return 0.5 * (1 + sign * y);
+  }
+  function normalPDF(x) { return Math.exp(-0.5*x*x) / Math.sqrt(2*Math.PI); }
+
+  function calcGreeks(S, K, T, r, sigma, type) {
+    if (T <= 0) T = 0.001;
+    const d1 = (Math.log(S/K) + (r + 0.5*sigma*sigma)*T) / (sigma*Math.sqrt(T));
+    const d2 = d1 - sigma*Math.sqrt(T);
+    const Nd1=normalCDF(d1), Nd2=normalCDF(d2), Nnd2=normalCDF(-d2), nd1=normalPDF(d1);
+    let delta, theta, rho;
+    if (type==='CALL') {
+      delta = Nd1;
+      theta = (-(S*nd1*sigma)/(2*Math.sqrt(T)) - r*K*Math.exp(-r*T)*Nd2)/365;
+      rho   = K*T*Math.exp(-r*T)*Nd2/100;
+    } else {
+      delta = Nd1 - 1;
+      theta = (-(S*nd1*sigma)/(2*Math.sqrt(T)) + r*K*Math.exp(-r*T)*Nnd2)/365;
+      rho   = -K*T*Math.exp(-r*T)*Nnd2/100;
+    }
+    const gamma = nd1 / (S*sigma*Math.sqrt(T));
+    const vega  = S*nd1*Math.sqrt(T)/100;
+    return { delta, gamma, theta, vega, rho };
+  }
+
+  function impliedVolFromPrice(S, K, T, r, marketPrice, type) {
+    let sigma = 0.3;
+    for (let i=0; i<100; i++) {
+      const d1=(Math.log(S/K)+(r+0.5*sigma*sigma)*T)/(sigma*Math.sqrt(T));
+      const d2=d1-sigma*Math.sqrt(T);
+      let price = type==='CALL'
+        ? S*normalCDF(d1)-K*Math.exp(-r*T)*normalCDF(d2)
+        : K*Math.exp(-r*T)*normalCDF(-d2)-S*normalCDF(-d1);
+      const vega = S*normalPDF(d1)*Math.sqrt(T);
+      const diff = price - marketPrice;
+      if (Math.abs(diff)<0.001) break;
+      sigma -= diff/(vega||0.001);
+      if (sigma<=0){sigma=0.01;break;}
+      if (sigma>5){sigma=5;break;}
+    }
+    return sigma;
+  }
+
+  /* ── Fallback data ── */
+  function getFallbackData() {
+    return {
+      stocks: {
+        NVDA:{price:875.40,previousClose:858.20,volume:48200000,dayHigh:889.00,dayLow:862.00},
+        AAPL:{price:211.30,previousClose:208.60,volume:72100000,dayHigh:213.50,dayLow:207.80},
+        MSFT:{price:418.70,previousClose:414.20,volume:19800000,dayHigh:421.00,dayLow:413.00},
+        TSLA:{price:252.40,previousClose:247.80,volume:115000000,dayHigh:258.00,dayLow:246.00}
+      },
+      options: {
+        NVDA:{expiry:"2026-06-19",contracts:[
+          {type:"CALL",strike:850,lastPrice:32.5,bid:32.0,ask:33.0,change:3.2,volume:2800,openInterest:11000,impliedVolatility:0.54,inTheMoney:true},
+          {type:"CALL",strike:875,lastPrice:18.0,bid:17.5,ask:18.5,change:2.1,volume:4200,openInterest:14500,impliedVolatility:0.52,inTheMoney:false},
+          {type:"CALL",strike:900,lastPrice:9.5,bid:9.0,ask:10.0,change:0.8,volume:3600,openInterest:12000,impliedVolatility:0.50,inTheMoney:false},
+          {type:"CALL",strike:925,lastPrice:4.2,bid:3.9,ask:4.5,change:-0.5,volume:2100,openInterest:8500,impliedVolatility:0.49,inTheMoney:false},
+          {type:"PUT",strike:875,lastPrice:16.5,bid:16.0,ask:17.0,change:-2.0,volume:3100,openInterest:10500,impliedVolatility:0.53,inTheMoney:false},
+          {type:"PUT",strike:850,lastPrice:8.0,bid:7.6,ask:8.4,change:-1.5,volume:2200,openInterest:7800,impliedVolatility:0.51,inTheMoney:false},
+          {type:"PUT",strike:825,lastPrice:3.8,bid:3.5,ask:4.1,change:-0.9,volume:1400,openInterest:5200,impliedVolatility:0.50,inTheMoney:false}
+        ]},
+        AAPL:{expiry:"2026-06-19",contracts:[
+          {type:"CALL",strike:207,lastPrice:7.2,bid:7.0,ask:7.4,change:1.1,volume:5800,openInterest:22000,impliedVolatility:0.28,inTheMoney:true},
+          {type:"CALL",strike:210,lastPrice:4.5,bid:4.3,ask:4.7,change:0.7,volume:7500,openInterest:28000,impliedVolatility:0.27,inTheMoney:true},
+          {type:"CALL",strike:215,lastPrice:2.1,bid:1.9,ask:2.3,change:0.2,volume:5200,openInterest:19000,impliedVolatility:0.26,inTheMoney:false},
+          {type:"CALL",strike:220,lastPrice:0.9,bid:0.8,ask:1.0,change:-0.1,volume:3100,openInterest:12000,impliedVolatility:0.25,inTheMoney:false},
+          {type:"PUT",strike:210,lastPrice:3.8,bid:3.6,ask:4.0,change:-0.8,volume:4200,openInterest:16000,impliedVolatility:0.29,inTheMoney:false},
+          {type:"PUT",strike:205,lastPrice:1.8,bid:1.6,ask:2.0,change:-1.2,volume:2800,openInterest:10500,impliedVolatility:0.28,inTheMoney:false}
+        ]},
+        MSFT:{expiry:"2026-06-19",contracts:[
+          {type:"CALL",strike:415,lastPrice:9.2,bid:8.9,ask:9.5,change:1.8,volume:3200,openInterest:13000,impliedVolatility:0.25,inTheMoney:true},
+          {type:"CALL",strike:420,lastPrice:5.5,bid:5.2,ask:5.8,change:1.1,volume:4500,openInterest:17000,impliedVolatility:0.24,inTheMoney:false},
+          {type:"CALL",strike:425,lastPrice:2.8,bid:2.6,ask:3.0,change:0.4,volume:3100,openInterest:11500,impliedVolatility:0.23,inTheMoney:false},
+          {type:"CALL",strike:430,lastPrice:1.2,bid:1.0,ask:1.4,change:-0.2,volume:1900,openInterest:7800,impliedVolatility:0.23,inTheMoney:false},
+          {type:"PUT",strike:415,lastPrice:6.0,bid:5.8,ask:6.2,change:-1.0,volume:2400,openInterest:9500,impliedVolatility:0.26,inTheMoney:false},
+          {type:"PUT",strike:410,lastPrice:3.2,bid:3.0,ask:3.4,change:-0.7,volume:1700,openInterest:7000,impliedVolatility:0.25,inTheMoney:false}
+        ]},
+        TSLA:{expiry:"2026-06-19",contracts:[
+          {type:"CALL",strike:247,lastPrice:11.5,bid:11.0,ask:12.0,change:2.8,volume:9500,openInterest:32000,impliedVolatility:0.66,inTheMoney:true},
+          {type:"CALL",strike:255,lastPrice:6.8,bid:6.4,ask:7.2,change:2.0,volume:8200,openInterest:27000,impliedVolatility:0.64,inTheMoney:false},
+          {type:"CALL",strike:262,lastPrice:3.9,bid:3.6,ask:4.2,change:0.8,volume:5800,openInterest:20000,impliedVolatility:0.62,inTheMoney:false},
+          {type:"CALL",strike:270,lastPrice:2.0,bid:1.8,ask:2.2,change:-0.3,volume:4200,openInterest:15000,impliedVolatility:0.61,inTheMoney:false},
+          {type:"PUT",strike:250,lastPrice:9.8,bid:9.4,ask:10.2,change:-2.2,volume:7100,openInterest:25000,impliedVolatility:0.67,inTheMoney:false},
+          {type:"PUT",strike:242,lastPrice:5.5,bid:5.2,ask:5.8,change:-1.8,volume:5400,openInterest:18500,impliedVolatility:0.65,inTheMoney:false},
+          {type:"PUT",strike:235,lastPrice:2.8,bid:2.5,ask:3.1,change:-1.1,volume:3600,openInterest:12000,impliedVolatility:0.63,inTheMoney:false}
+        ]}
+      }
+    };
+  }
+
+  /* ── Finnhub live fetch ── */
+  const FINNHUB_KEY = 'd8b3idhr01qk20spgmsgd8b3idhr01qk20spgmt0';
+
+  async function fetchLiveStocks() {
+    const results = {};
+    for (const ticker of TICKERS) {
+      try {
+        const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${FINNHUB_KEY}`,{credentials:'omit'});
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        if (d && d.c > 0) {
+          results[ticker] = {
+            price:d.c, previousClose:d.pc, dayHigh:d.h, dayLow:d.l,
+            volume:d.v||0,
+            change:d.c-d.pc,
+            changePercent:((d.c-d.pc)/d.pc)*100
+          };
+        }
+      } catch(e) { console.log('Finnhub error',ticker,e.message); }
+    }
+    return results;
+  }
+
+  async function fetchAllLiveData() {
+    const stocks = await fetchLiveStocks();
+    if (!Object.keys(stocks).length) return null;
+    const options = {};
+    TICKERS.forEach(t => { options[t] = generateNTMOptions(t, stocks[t]?.price||100); });
+    return { stocks, options };
+  }
+
+  function generateNTMOptions(ticker, S) {
+    const ivMap={NVDA:0.52,TSLA:0.65,AAPL:0.27,MSFT:0.24};
+    const iv = ivMap[ticker]||0.35;
+    const step = S>400?5:S>100?2.5:1;
+    const atm = Math.round(S/step)*step;
+    const expiry = getNextFriday();
+    const contracts = [];
+    [-2,-1,0,1,2,3].forEach(i => {
+      const strike = atm + i*step;
+      const dist = (strike-S)/S;
+      const callPrice = Math.max(0.05, S*iv*0.1*Math.exp(-Math.abs(dist)*8)+Math.max(0,S-strike)*0.98);
+      const putPrice  = Math.max(0.05, S*iv*0.1*Math.exp(-Math.abs(dist)*8)+Math.max(0,strike-S)*0.98);
+      const volMult = Math.exp(-Math.abs(dist)*5);
+      contracts.push({
+        type:'CALL',strike,lastPrice:+callPrice.toFixed(2),
+        bid:+(callPrice*0.97).toFixed(2),ask:+(callPrice*1.03).toFixed(2),
+        change:+(Math.random()*2-0.5).toFixed(2),
+        volume:Math.round(2000+8000*volMult+Math.random()*2000),
+        openInterest:Math.round(8000+25000*volMult),
+        impliedVolatility:Math.max(0.1,iv+dist*0.05),
+        inTheMoney:strike<S
+      });
+      contracts.push({
+        type:'PUT',strike,lastPrice:+putPrice.toFixed(2),
+        bid:+(putPrice*0.97).toFixed(2),ask:+(putPrice*1.03).toFixed(2),
+        change:+(-(Math.random()*2-0.5)).toFixed(2),
+        volume:Math.round(1500+6000*volMult+Math.random()*1500),
+        openInterest:Math.round(6000+20000*volMult),
+        impliedVolatility:Math.max(0.1,iv-dist*0.03),
+        inTheMoney:strike>S
+      });
+    });
+    return { expiry, contracts };
+  }
+
+  function getNextFriday() {
+    const d=new Date();
+    let days=(5-d.getDay()+7)%7;
+    if(days===0)days=7;
+    d.setDate(d.getDate()+days);
+    return d.toISOString().split('T')[0];
+  }
+
+  /* ── Score engine ── */
+  function computeScore(opt, greeks, stock) {
+    const S = stock?.price||0;
+    const distFromATM = Math.abs(opt.strike-S)/S;
+    const spread = opt.ask-opt.bid;
+    const spreadPct = spread/(opt.lastPrice||0.01);
+    const trend = (stock?.change||0)>=0?'UP':'DOWN';
+    const volScore    = Math.min(Math.log10((opt.volume||1)+1)/4.5,1);
+    const spreadScore = spreadPct<0.05?1:spreadPct<0.10?0.7:spreadPct<0.20?0.4:0.1;
+    const atmScore    = Math.exp(-distFromATM/0.025);
+    const absDelta    = Math.abs(greeks.delta);
+    const deltaScore  = absDelta>=0.30&&absDelta<=0.70?1:absDelta>=0.20&&absDelta<=0.80?0.6:0.2;
+    const iv          = opt.impliedVolatility;
+    const ivScore     = iv>=0.25&&iv<=0.65?1:iv>=0.15&&iv<=0.80?0.6:0.2;
+    const trendBonus  = (trend==='UP'&&opt.type==='CALL')||(trend==='DOWN'&&opt.type==='PUT')?0.15:0;
+    const oiScore     = Math.min(Math.log10((opt.openInterest||1)+1)/4,1)*0.5;
+    const thetaPenalty= Math.abs(greeks.theta)>0.05?-0.1:0;
+    return Math.max(0,Math.min(1,
+      volScore*0.20+spreadScore*0.18+atmScore*0.22+deltaScore*0.15+
+      ivScore*0.12+oiScore*0.08+trendBonus+thetaPenalty
+    ));
+  }
+
+  /* ── Main fetch & render ── */
+  async function fetchAllData() {
+    showStatus('🔄 جاري جلب البيانات الحية...','blue');
+    const btn=document.getElementById('refresh-btn');
+    if(btn){btn.disabled=true;btn.textContent='⏳ جاري التحديث...';}
+    try {
+      let liveData=null;
+      try{liveData=await fetchAllLiveData();}catch(e){liveData=null;}
+      const data=liveData||getFallbackData();
+      const isLive=!!liveData;
+      Object.entries(data.stocks).forEach(([ticker,s])=>{
+        stockData[ticker]={...s,
+          change:s.change??(s.price-s.previousClose),
+          changePercent:s.changePercent??((s.price-s.previousClose)/s.previousClose*100)
+        };
+      });
+      const today=new Date(), r=0.053;
+      Object.entries(data.options).forEach(([ticker,opt])=>{
+        const S=stockData[ticker]?.price||100;
+        const T=Math.max((new Date(opt.expiry)-today)/(365*24*3600*1000),0.01);
+        const contracts=opt.contracts.map(c=>{
+          const sigma=c.impliedVolatility||impliedVolFromPrice(S,c.strike,T,r,c.lastPrice,c.type);
+          const greeks=calcGreeks(S,c.strike,T,r,sigma,c.type);
+          const score=computeScore(c,greeks,stockData[ticker]);
+          return{...c,sigma,greeks,score,T,r};
+        });
+        optionsData[ticker]={expiry:opt.expiry,contracts};
+      });
+      updateStocksGrid();
+      updateOptionsTable();
+      updateTopTrades();
+      if(isChartReady)updateCharts();
+      updateTicker();
+      const now=new Date().toLocaleTimeString('ar-SA');
+      const el=document.getElementById('last-update-text');
+      if(el)el.textContent=`آخر تحديث: ${now}`;
+      const cs=document.getElementById('conn-status');
+      if(cs){
+        cs.textContent=isLive
+          ?'✅ أسعار حية — Finnhub API | الخيارات محسوبة من الأسعار الحية'
+          :'⚠️ تعذر الاتصال بـ Finnhub — بيانات محاكاة';
+        showStatus(isLive?'✅ أسعار حية من Finnhub':'⚠️ بيانات محاكاة',isLive?'green':'blue',3000);
+      }
+    } catch(err){
+      showStatus(`❌ خطأ: ${err.message}`,'red',5000);
+    } finally {
+      if(btn){btn.disabled=false;btn.textContent='🔄 تحديث';}
+    }
+  }
+
+  /* ── UI updates ── */
+  function updateStocksGrid() {
+    const grid=document.getElementById('stocks-grid');
+    if(!grid)return;
+    grid.innerHTML=TICKERS.map(ticker=>{
+      const d=stockData[ticker];if(!d)return'';
+      const up=d.change>=0;
+      const pct=d.changePercent;
+      const barWidth=Math.min(Math.max(50+pct*5,5),95);
+      return`<div class="stock-card ${up?'up':'down'} ${currentTicker===ticker?'selected':''}" onclick="selectTicker('${ticker}')">
+        <div class="sc-header">
+          <div class="sc-ticker">${ticker}</div>
+          <div class="sc-badge ${up?'badge-up':'badge-down'}">${up?'▲':'▼'} ${up?'+':''}${pct.toFixed(2)}%</div>
+        </div>
+        <div class="sc-price">$${d.price.toFixed(2)}</div>
+        <div class="sc-change ${up?'up':'down'}">${up?'+':''}$${d.change.toFixed(2)} ${up?'▲':'▼'}</div>
+        <div class="sc-stats">
+          <span>Vol: ${(d.volume/1e6).toFixed(1)}M</span>
+          <span>H: $${d.dayHigh.toFixed(2)}</span>
+          <span>L: $${d.dayLow.toFixed(2)}</span>
+        </div>
+        <div class="sc-bar"><div class="sc-bar-fill" style="width:${barWidth}%;background:${up?'var(--green)':'var(--red)'}"></div></div>
+      </div>`;
+    }).join('');
+  }
+
+  function updateOptionsTable() {
+    const tbody=document.getElementById('options-tbody');if(!tbody)return;
+    const optData=optionsData[currentTicker];
+    if(!optData){
+      tbody.innerHTML='<tr><td colspan="14" class="loading-cell"><div class="text-muted">لا توجد بيانات — يرجى الضغط على تحديث</div></td></tr>';
+      return;
+    }
+    const expiryEl=document.getElementById('options-expiry');
+    if(expiryEl)expiryEl.textContent=`انتهاء: ${optData.expiry}`;
+    let contracts=[...optData.contracts];
+    if(currentTab==='calls')contracts=contracts.filter(c=>c.type==='CALL');
+    if(currentTab==='puts')contracts=contracts.filter(c=>c.type==='PUT');
+    contracts.sort((a,b)=>a.strike-b.strike);
+    if(!contracts.length){
+      tbody.innerHTML='<tr><td colspan="14" class="loading-cell"><div class="text-muted">لا توجد بيانات</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML=contracts.map(c=>{
+      const g=c.greeks;
+      const chgColor=c.change>=0?'text-green':'text-red';
+      const scoreW=(c.score*80).toFixed(0);
+      const scoreColor=c.score>0.65?'var(--green)':c.score>0.40?'var(--yellow)':'var(--red)';
+      return`<tr class="${c.type==='CALL'?'call-row':'put-row'} ${c.inTheMoney?'itm':''}"
+          onclick="showGreeks('${currentTicker}',${c.strike},'${c.type}')" style="cursor:pointer">
+        <td><span class="type-badge ${c.type==='CALL'?'type-call':'type-put'}">${c.type}</span></td>
+        <td><strong>$${c.strike.toFixed(0)}</strong></td>
+        <td><strong>$${c.lastPrice.toFixed(2)}</strong></td>
+        <td class="text-muted">$${c.bid.toFixed(2)}</td>
+        <td class="text-muted">$${c.ask.toFixed(2)}</td>
+        <td class="${chgColor}">${c.change>=0?'+':''}${c.change.toFixed(2)}</td>
+        <td>${c.volume.toLocaleString()}</td>
+        <td>${c.openInterest.toLocaleString()}</td>
+        <td>${(c.impliedVolatility*100).toFixed(1)}%</td>
+        <td class="${Math.abs(g.delta)>0.5?'text-green':'text-muted'}">${g.delta.toFixed(3)}</td>
+        <td class="text-red">${g.theta.toFixed(3)}</td>
+        <td>
+          <div class="score-bar">
+            <div class="score-fill" style="width:${scoreW}px;background:${scoreColor}"></div>
+            <span style="font-size:11px;color:${scoreColor}">${(c.score*100).toFixed(0)}</span>
+          </div>
+        </td>
+        <td><span class="itm-badge ${c.inTheMoney?'itm-yes':'itm-no'}">${c.inTheMoney?'ITM':'OTM'}</span></td>
+        <td>
+          <button class="trade-btn ${c.type==='CALL'?'trade-btn-call':'trade-btn-put'}"
+            onclick="event.stopPropagation();openModal('${currentTicker}','${c.type}',${c.strike},${c.lastPrice})">
+            تداول
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function showGreeks(ticker, strike, type) {
+    const optData=optionsData[ticker];if(!optData)return;
+    const contract=optData.contracts.find(c=>c.strike===strike&&c.type===type);if(!contract)return;
+    const g=contract.greeks;
+    const label=document.getElementById('greeks-ticker-label');
+    if(label)label.textContent=`${ticker} ${type} $${strike}`;
+    const items=[
+      {symbol:'Δ',name:'Delta',value:g.delta.toFixed(3),desc:`لكل $1 تغير في السهم، العقد يتغير $${(g.delta*100).toFixed(2)}`,color:Math.abs(g.delta)>0.5?'var(--green)':'var(--yellow)'},
+      {symbol:'Γ',name:'Gamma',value:g.gamma.toFixed(4),desc:'معدل تغيّر Delta مقابل $1 حركة في السهم',color:'var(--accent)'},
+      {symbol:'Θ',name:'Theta',value:`${g.theta.toFixed(3)}/يوم`,desc:`العقد يفقد $${Math.abs(g.theta*100).toFixed(2)} يومياً بفعل الوقت`,color:'var(--red)'},
+      {symbol:'ν',name:'Vega',value:g.vega.toFixed(3),desc:`لكل 1% زيادة في IV، العقد يتغير $${(g.vega*100).toFixed(2)}`,color:'var(--purple)'},
+      {symbol:'ρ',name:'Rho',value:g.rho.toFixed(3),desc:'لكل 1% تغير في أسعار الفائدة',color:'var(--muted)'}
+    ];
+    const grid=document.getElementById('greeks-grid');
+    if(grid)grid.innerHTML=items.map(item=>`
+      <div class="greek-card">
+        <div class="greek-symbol" style="color:${item.color}">${item.symbol}</div>
+        <div class="greek-name">${item.name}</div>
+        <div class="greek-value" style="color:${item.color};font-size:16px">${item.value}</div>
+        <div class="greek-desc">${item.desc}</div>
+      </div>`).join('');
+    const absDelta=Math.abs(g.delta);
+    const deltaInterpret=absDelta>0.7?'عقد عميق ITM — يتحرك مثل السهم':
+                          absDelta>0.5?'عقد ITM — حساسية عالية للحركة':
+                          absDelta>0.3?'عقد ATM — أفضل للـ Day Trading':
+                          'عقد OTM — احتمال ربح منخفض لكن leverage عالي';
+    const exp=document.getElementById('greeks-explanation');
+    if(exp)exp.innerHTML=`<strong style="color:var(--text)">📊 قراءة Greeks:</strong>
+      <span style="margin-right:8px">${deltaInterpret}</span> —
+      Theta يكلّفك <strong style="color:var(--red)">$${Math.abs(g.theta*100).toFixed(2)}</strong> يومياً —
+      إذا ارتفعت IV بـ 5%، Vega تجلب <strong style="color:var(--purple)">$${(g.vega*5).toFixed(2)}</strong> للعقد`;
+    if(isChartReady)updateGreeksChart(contract);
+  }
+
+  function updateTopTrades() {
+    let all=[];
+    Object.entries(optionsData).forEach(([ticker,d])=>{
+      d.contracts.forEach(c=>{
+        if(c.volume>=500&&c.lastPrice>=0.5&&c.lastPrice<=30&&
+           c.impliedVolatility>=0.15&&c.impliedVolatility<=0.85)
+          all.push({ticker,...c});
+      });
+    });
+    const top5=all.sort((a,b)=>b.score-a.score).slice(0,5);
+    const container=document.getElementById('top-trades-grid');if(!container)return;
+    if(!top5.length){
+      container.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:30px">اضغط تحديث لتحميل البيانات أولاً</div>';
+      return;
+    }
+    const rankClass=['rank-1','rank-2','rank-3','rank-other','rank-other'];
+    const tickerColors={NVDA:'var(--green)',AAPL:'#9CA3AF',MSFT:'var(--accent)',TSLA:'var(--red)'};
+    const stockTrend={};
+    Object.entries(stockData).forEach(([t,d])=>{stockTrend[t]=d.change>=0?'▲':'▼';});
+    container.innerHTML=top5.map((t,idx)=>{
+      const isCall=t.type==='CALL';
+      const targetPct=isCall?(t.ticker==='TSLA'?45:30):(t.ticker==='TSLA'?50:35);
+      const stopPct=isCall?20:25;
+      const potProfit=(t.lastPrice*targetPct/100*100).toFixed(0);
+      const risk=(t.lastPrice*stopPct/100*100).toFixed(0);
+      const scoreBar=(t.score*100).toFixed(0);
+      return`<div class="top-trade-card">
+        <div class="rank-badge ${rankClass[idx]}">${idx+1}</div>
+        <div style="text-align:center;padding-top:8px">
+          <div class="ttc-ticker" style="color:${tickerColors[t.ticker]}">${t.ticker} ${stockTrend[t.ticker]||'▲'}</div>
+          <div class="ttc-type">${t.type} · Strike $${t.strike}</div>
+          <div class="ttc-price" style="color:${isCall?'var(--green)':'var(--red)'}">$${t.lastPrice.toFixed(2)}</div>
+        </div>
+        <div class="ttc-stats">
+          <div class="ttc-stat"><span class="label">Volume</span><span class="font-mono">${t.volume.toLocaleString()}</span></div>
+          <div class="ttc-stat"><span class="label">IV</span><span class="font-mono">${(t.impliedVolatility*100).toFixed(1)}%</span></div>
+          <div class="ttc-stat"><span class="label">Delta Δ</span><span class="font-mono">${t.greeks.delta.toFixed(3)}</span></div>
+          <div class="ttc-stat"><span class="label">Theta Θ</span><span class="font-mono text-red">${t.greeks.theta.toFixed(3)}</span></div>
+          <div class="ttc-stat"><span class="label">Score</span><span class="font-mono text-yellow">${scoreBar}/100</span></div>
+        </div>
+        <div class="ttc-targets">
+          <span class="target-up">🎯 +${targetPct}% = $${potProfit}</span>
+          <span class="target-down">🛑 -${stopPct}% = $${risk}</span>
+        </div>
+        <div class="score-display">
+          <span class="text-muted">Score</span>
+          <div class="score-track"><div style="height:100%;width:${scoreBar}%;background:var(--yellow);border-radius:2px"></div></div>
+          <span class="score-val">${scoreBar}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function updateTicker() {
+    const ticker=document.getElementById('live-ticker');if(!ticker)return;
+    const items=TICKERS.map(t=>{
+      const d=stockData[t];if(!d)return'';
+      const up=d.change>=0;
+      return`<span class="ticker-item">
+        <strong>${t}</strong>
+        <span>$${d.price.toFixed(2)}</span>
+        <span class="${up?'tick-up':'tick-down'}">${up?'▲':'▼'}${up?'+':''}${d.changePercent.toFixed(2)}%</span>
+      </span>`;
+    }).join('');
+    const doubled=items+items;
+    ticker.innerHTML=doubled;
+  }
+
+  /* ── Charts ── */
+  function initCharts() {
+    const defaults={
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.03)'},ticks:{color:'#5A7090',font:{size:10}}},
+        y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#5A7090',font:{size:10}}}
+      }
+    };
+    const volCtx=document.getElementById('volumeChart');
+    const ivCtx=document.getElementById('ivChart');
+    const gCtx=document.getElementById('greeksChart');
+    if(volCtx)charts.volume=new Chart(volCtx,{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:'rgba(59,130,246,0.5)',borderColor:'var(--accent)',borderWidth:1}]},options:{...defaults}});
+    if(ivCtx)charts.iv=new Chart(ivCtx,{type:'line',data:{labels:[],datasets:[{data:[],borderColor:'var(--yellow)',backgroundColor:'rgba(245,158,11,0.1)',fill:true,tension:0.4,pointRadius:3}]},options:{...defaults}});
+    if(gCtx)charts.greeks=new Chart(gCtx,{type:'radar',data:{labels:['Delta','Gamma','Theta','Vega','Rho'],datasets:[{data:[0,0,0,0,0],borderColor:'var(--purple)',backgroundColor:'rgba(139,92,246,0.15)',pointBackgroundColor:'var(--purple)',pointRadius:4}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{r:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{display:false},pointLabels:{color:'#5A7090',font:{size:11}}}}}});
+    isChartReady=true;
+  }
+
+  function updateCharts() {
+    if(!isChartReady||!Object.keys(optionsData).length)return;
+    const opt=optionsData[currentTicker];if(!opt)return;
+    const calls=opt.contracts.filter(c=>c.type==='CALL').sort((a,b)=>a.strike-b.strike);
+    if(charts.volume){
+      charts.volume.data.labels=calls.map(c=>`$${c.strike}`);
+      charts.volume.data.datasets[0].data=calls.map(c=>c.volume);
+      charts.volume.update('none');
+    }
+    if(charts.iv){
+      charts.iv.data.labels=calls.map(c=>`$${c.strike}`);
+      charts.iv.data.datasets[0].data=calls.map(c=>+(c.impliedVolatility*100).toFixed(1));
+      charts.iv.update('none');
+    }
+  }
+
+  function updateGreeksChart(contract) {
+    if(!charts.greeks||!contract)return;
+    const g=contract.greeks;
+    charts.greeks.data.datasets[0].data=[
+      Math.abs(g.delta)*100,
+      Math.min(g.gamma*1000,100),
+      Math.min(Math.abs(g.theta)*1000,100),
+      Math.min(g.vega*100,100),
+      Math.min(Math.abs(g.rho)*100,100)
+    ];
+    charts.greeks.update('none');
+  }
+
+  /* ── Trade modal ── */
+  function openModal(ticker, type, strike, price) {
+    pendingTrade={ticker,type,strike,price,entryTime:new Date()};
+    const isCall=type==='CALL';
+    const s=stockData[ticker];
+    const targetPct=isCall?(ticker==='TSLA'?45:30):(ticker==='TSLA'?50:35);
+    const stopPct=20;
+    const rows=document.getElementById('modal-rows');
+    if(rows)rows.innerHTML=[
+      ['السهم',ticker],[`نوع الخيار`,`<span class="type-badge ${isCall?'type-call':'type-put'}">${type}</span>`],
+      ['Strike Price',`$${strike}`],['سعر العقد الحالي',`$${price.toFixed(2)}`],
+      ['سعر السهم الحالي',s?`$${s.price.toFixed(2)}`:'--'],
+      ['قيمة العقد الواحد (×100)',`$${(price*100).toFixed(0)}`],
+      ['هدف الربح',`+${targetPct}% → $${(price*1+price*targetPct/100).toFixed(2)}`],
+      ['وقف الخسارة',`-${stopPct}% → $${(price*(1-stopPct/100)).toFixed(2)}`]
+    ].map(([l,v])=>`<div class="modal-row"><span class="label">${l}</span><span class="val">${v}</span></div>`).join('');
+    const warn=document.getElementById('modal-warning');
+    if(warn)warn.textContent='⚠️ هذا نظام تعليمي فقط — التداول ينطوي على مخاطر عالية وقد تخسر كامل المبلغ المستثمر. لا تستثمر أكثر مما تستطيع تحمل خسارته.';
+    const modal=document.getElementById('trade-modal');
+    if(modal)modal.classList.add('open');
+  }
+
+  function closeModal() {
+    const modal=document.getElementById('trade-modal');
+    if(modal)modal.classList.remove('open');
+    pendingTrade=null;
+  }
+
+  function confirmTrade() {
+    if(!pendingTrade)return;
+    const t=pendingTrade;
+    const id=Date.now();
+    activeTrades.push({...t,id,contracts:1,currentPrice:t.price,pnl:0});
+    closeModal();
+    updateActiveTradesList();
+    showNotif(`✅ تم تنفيذ: ${t.ticker} ${t.type} $${t.strike} | دفعت $${(t.price*100).toFixed(0)}`,'green');
+    startPnlUpdates();
+  }
+
+  function closeTrade(id) {
+    const idx=activeTrades.findIndex(t=>t.id===id);if(idx<0)return;
+    const t=activeTrades[idx];
+    const pnl=(t.currentPrice-t.price)*100;
+    activeTrades.splice(idx,1);
+    updateActiveTradesList();
+    showNotif(`${pnl>=0?'✅ ربح':'❌ خسارة'}: ${t.ticker} ${t.type} | ${pnl>=0?'+':''}$${pnl.toFixed(0)}`,'');
+  }
+
+  function startPnlUpdates() {
+    if(activeTrades._interval)return;
+    activeTrades._interval=setInterval(()=>{
+      activeTrades.forEach(t=>{
+        const drift=(Math.random()-0.48)*0.05;
+        t.currentPrice=Math.max(0.01,t.currentPrice*(1+drift));
+        t.pnl=(t.currentPrice-t.price)*100*t.contracts;
+      });
+      updateActiveTradesList();
+    },3000);
+  }
+
+  function updateActiveTradesList() {
+    const list=document.getElementById('active-trades-list');
+    const count=document.getElementById('trades-count');
+    if(count)count.textContent=activeTrades.length?`${activeTrades.length} صفقة نشطة`:'لا توجد صفقات';
+    if(!list)return;
+    if(!activeTrades.length){
+      list.innerHTML='<div class="text-muted text-center" style="padding:20px">لا توجد صفقات نشطة — اضغط "تداول" على أي عقد</div>';
+      return;
+    }
+    list.innerHTML=activeTrades.map(t=>{
+      const pnlPos=t.pnl>=0;
+      const pnlPct=((t.currentPrice-t.price)/t.price*100).toFixed(1);
+      return`<div class="active-trade">
+        <div class="at-icon">${t.type==='CALL'?'📈':'📉'}</div>
+        <div class="at-info">
+          <div class="at-title">${t.ticker} ${t.type} $${t.strike}</div>
+          <div class="at-sub">دخل @ $${t.price.toFixed(2)} · الآن $${t.currentPrice.toFixed(2)} · ${new Date(t.entryTime).toLocaleTimeString('ar-SA')}</div>
+        </div>
+        <div class="at-pnl">
+          <div class="at-pnl-val" style="color:${pnlPos?'var(--green)':'var(--red)'}">${pnlPos?'+':''}$${t.pnl.toFixed(0)}</div>
+          <div style="font-size:11px;color:${pnlPos?'var(--green)':'var(--red)'}">${pnlPos?'+':''}${pnlPct}%</div>
+        </div>
+        <button class="at-close" onclick="closeTrade(${t.id})">إغلاق</button>
+      </div>`;
+    }).join('');
+  }
+
+  /* ── Utility ── */
+  let statusTimeout=null;
+  function showStatus(msg,color,duration) {
+    const el=document.getElementById('status-overlay');if(!el)return;
+    el.textContent=msg;
+    el.style.color=color==='green'?'var(--green)':color==='red'?'var(--red)':'var(--accent)';
+    el.classList.add('show');
+    clearTimeout(statusTimeout);
+    if(duration)statusTimeout=setTimeout(()=>el.classList.remove('show'),duration);
+  }
+
+  let notifTimeout=null;
+  function showNotif(msg) {
+    const el=document.getElementById('notif');if(!el)return;
+    el.textContent=msg;
+    el.classList.add('show');
+    clearTimeout(notifTimeout);
+    notifTimeout=setTimeout(()=>el.classList.remove('show'),4000);
+  }
+
+  /* ── Global functions ── */
+  window.selectTicker=function(ticker) {
+    currentTicker=ticker;
+    document.querySelectorAll('.ticker-pill').forEach(b=>{
+      b.classList.toggle('active',b.textContent===ticker);
+    });
+    updateStocksGrid();
+    updateOptionsTable();
+    if(isChartReady)updateCharts();
+  };
+
+  window.switchTab=function(tab) {
+    currentTab=tab;
+    document.querySelectorAll('.tab-btn').forEach(b=>{
+      b.classList.toggle('active',
+        (tab==='all'&&b.textContent==='الكل')||
+        (tab==='calls'&&b.textContent.includes('CALLS'))||
+        (tab==='puts'&&b.textContent.includes('PUTS'))
+      );
+    });
+    updateOptionsTable();
+  };
+
+  window.showGreeks=showGreeks;
+  window.openModal=openModal;
+  window.closeModal=closeModal;
+  window.confirmTrade=confirmTrade;
+  window.closeTrade=closeTrade;
+  window.fetchAllData=fetchAllData;
+
+  let autoOn=true;
+  window.toggleAuto=function() {
+    autoOn=!autoOn;
+    const btn=document.getElementById('auto-btn');
+    if(autoOn){
+      autoInterval=setInterval(fetchAllData,60000);
+      if(btn){btn.textContent='⏸ تلقائي (60s)';btn.classList.add('active');}
+    } else {
+      clearInterval(autoInterval);
+      if(btn){btn.textContent='▶ تشغيل تلقائي';btn.classList.remove('active');}
+    }
+  };
+
+  /* ── Init ── */
+  document.addEventListener('DOMContentLoaded',()=>{
+    initCharts();
+    fetchAllData();
+    autoInterval=setInterval(fetchAllData,60000);
+  });
+
+  document.getElementById('trade-modal')?.addEventListener('click',function(e){
+    if(e.target===this)closeModal();
+  });
+
+})();
+</script>
+</body>
+</html>
